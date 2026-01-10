@@ -3,83 +3,91 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Loader2, DollarSign, User, MapPin, CreditCard, Phone, Building2, Hash, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button.jsx';
 import { CustomDatePicker, SearchableSelect } from './CustomInputs'; 
-import { createEmployee } from '../utils/auth'; 
+import { createEmployee, updateEmployee } from '../utils/auth'; 
 
 const SectionHeader = ({ title, icon: Icon }) => (
-  <div className="col-span-full flex items-center gap-2 pt-6 pb-2 border-b border-gray-200 mb-4">
-    <Icon className="h-4 w-4 text-indigo-700" />
-    <h3 className="text-sm font-bold text-gray-900 uppercase tracking-widest">{title}</h3>
-  </div>
-);
-
-const FormField = ({ label, children }) => (
-  <div className="space-y-1.5">
-    {/* Darkened label for better visibility */}
-    <label className="text-[11px] font-bold text-gray-700 uppercase tracking-widest ml-1">
-      {label}
-    </label>
-    {children}
-  </div>
-);
-
-export const AddEmployeeModal = ({ isOpen, onClose, onRefresh }) => {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+    <div className="col-span-full flex items-center gap-2 pt-6 pb-2 border-b border-gray-200 mb-4">
+      <Icon className="h-4 w-4 text-indigo-700" />
+      <h3 className="text-sm font-bold text-gray-900 uppercase tracking-widest">{title}</h3>
+    </div>
+  );
   
-  const initialForm = {
-    id_number: '',
+  const FormField = ({ label, children }) => (
+    <div className="space-y-1.5">
+      {/* Darkened label for better visibility */}
+      <label className="text-[11px] font-bold text-gray-700 uppercase tracking-widest ml-1">
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+
+export const AddEmployeeModal = ({ isOpen, onClose, onRefresh, employeeData = null }) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isEditing = !!employeeData;
+
+  // Preserve your exact initial state
+  const [formData, setFormData] = useState({
+    id_number: '', 
     name: '', 
-    status: 'Office', // Set default as Office as requested
     position: '', 
-    group: '', 
-    birthday: null, 
     age: '', 
+    birthday: null,
     phone_number: '', 
-    address: '',
-    date_started: null, 
-    year_started: new Date().getFullYear(),
+    address: '', 
+    group: '', 
+    date_started: null,
+    year_started: '', 
+    status: 'Office', 
     rate: '', 
-    hourly_rate: 0, 
-    sss: '', 
+    sss: '',
     philhealth: '', 
     pagibig: '', 
     tin: '', 
-    client_name: '', 
+    client_name: '',
     department_location: '', 
     bank_account_number: '', 
-    bank_type: 'AUB' 
-  };
+    bank_type: ''
+  });
 
-  const [formData, setFormData] = useState(initialForm);
-
+  // Load employee data into your fields when editing
   useEffect(() => {
-    if (isOpen) setFormData(initialForm);
-  }, [isOpen]);
-
-  useEffect(() => {
-    const daily = parseFloat(formData.rate) || 0;
-    setFormData(prev => ({ ...prev, hourly_rate: (daily / 8).toFixed(2) }));
-  }, [formData.rate]);
+    if (employeeData && isOpen) {
+      setFormData({ ...employeeData });
+    } else if (!employeeData && isOpen) {
+      // Reset if adding new
+      setFormData({
+        id_number: '', name: '', position: '', age: '', birthday: null,
+        phone_number: '', address: '', group: '', date_started: null,
+        year_started: '', status: 'Office', rate: '', sss: '',
+        philhealth: '', pagibig: '', tin: '', client_name: '',
+        department_location: '', bank_account_number: '', bank_type: ''
+      });
+    }
+  }, [employeeData, isOpen]);
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
-      const response = await createEmployee(formData);
-      if (response.ok) {
-        if (onRefresh) onRefresh();
+      // Logic for both Create and Update
+      const res = isEditing 
+        ? await updateEmployee(employeeData.id, formData) 
+        : await createEmployee(formData);
+      
+      if (res.ok) {
+        onRefresh();
         onClose();
-      } else {
-        const errorData = await response.json();
-        alert(`Error: ${errorData.message || 'Failed to save employee'}`);
       }
-    } catch (error) {
-      console.error("Submission error:", error);
-      alert("A network error occurred.");
+    } catch (err) {
+      console.error(err);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   if (!isOpen) return null;
+
+  const hourlyRate = formData.rate ? (parseFloat(formData.rate) / 8).toFixed(2) : '0.00';
 
   return (
     <AnimatePresence>
@@ -93,7 +101,7 @@ export const AddEmployeeModal = ({ isOpen, onClose, onRefresh }) => {
           {/* Header */}
           <div className="p-6 border-b flex justify-between items-center bg-[#0e1048] sticky top-0 z-10 ">
             <div>
-              <h2 className="text-2xl font-extrabold text-white tracking-tight ">Add New Employee</h2>
+            <h3 className="text-xl font-bold">{isEditing ? 'Edit Employee' : 'Add New Employee'}</h3>
               <p className="text-sm text-white font-medium">Please fill out the details below.</p>
             </div>
             <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-white hover:text-gray-900 cursor-pointer">
@@ -223,6 +231,19 @@ export const AddEmployeeModal = ({ isOpen, onClose, onRefresh }) => {
                   />
                 </div>
               </FormField>
+
+              <FormField label="Hourly Rate (Read Only)">
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">₱</span>
+          <input 
+            type="text" 
+            value={hourlyRate} 
+            readOnly 
+            disabled
+            className="w-full pl-8 pr-4 py-2.5 bg-gray-100 border border-gray-300 rounded-xl text-sm text-gray-500 font-bold cursor-not-allowed"
+          />
+        </div>
+      </FormField>
 
               <FormField label="SSS No."><input type="text" value={formData.sss} onChange={e => setFormData({...formData, sss: e.target.value})} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-400 rounded-xl text-sm text-gray-900 font-medium" /></FormField>
               <FormField label="PhilHealth"><input type="text" value={formData.philhealth} onChange={e => setFormData({...formData, philhealth: e.target.value})} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-400 rounded-xl text-sm text-gray-900 font-medium" /></FormField>
