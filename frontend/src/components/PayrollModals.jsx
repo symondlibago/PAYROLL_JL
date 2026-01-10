@@ -246,7 +246,7 @@ export const ProcessPayrollModal = ({ isOpen, onClose, onSubmit, employees, isLo
         {preview && (
           <div className="sticky bottom-0 bg-white border-t p-4 flex justify-between items-center shadow-lg">
             <div className="flex gap-6 text-sm">
-              <span>Gross: <b className="text-gray-900">₱{preview.gross.toLocaleString(undefined, {minimumFractionDigits: 2})}</b></span>
+              <span>Gross: <b className="text-green-900">₱{preview.gross.toLocaleString(undefined, {minimumFractionDigits: 2})}</b></span>
               <span>Deductions: <b className="text-red-600">₱{preview.deductions.toLocaleString(undefined, {minimumFractionDigits: 2})}</b></span>
             </div>
             <div className="flex items-center gap-4">

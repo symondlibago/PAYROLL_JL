@@ -16,10 +16,12 @@ import API_BASE_URL from './Config'
 const FilterDropdown = ({ label, value, options, onChange, icon: Icon }) => {
   const [isOpen, setIsOpen] = useState(false)
   return (
-    <div className="relative">
+    <div className="relative font-mono">
+      {/* Added empty label spacer to match DatePicker height alignment if needed, 
+          or rely on items-end in parent. Here we just rely on button styling. */}
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg hover:bg-white hover:border-blue-300 transition-all text-sm font-medium text-gray-700 min-w-[160px] justify-between h-[42px]"
+        className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg hover:bg-white hover:border-blue-300 transition-all text-sm font-medium text-gray-700 min-w-40 justify-between h-[38px] w-full"
       >
         <span className="flex items-center gap-2">
           {Icon && <Icon className="w-4 h-4 text-gray-500" />}
@@ -40,7 +42,7 @@ const FilterDropdown = ({ label, value, options, onChange, icon: Icon }) => {
                 <button
                   key={opt}
                   onClick={() => { onChange(opt); setIsOpen(false); }}
-                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 hover:text-blue-600 transition-colors font-mono"
                 >
                   {opt}
                 </button>
@@ -53,7 +55,6 @@ const FilterDropdown = ({ label, value, options, onChange, icon: Icon }) => {
   )
 }
 
-// --- Status Changing Dropdown ---
 const StatusCell = ({ id, currentStatus, onUpdate }) => {
   const [isOpen, setIsOpen] = useState(false)
   
@@ -130,48 +131,48 @@ const WorkersPayroll = () => {
   const [toast, setToast] = useState(null)
 
   const fetchData = useCallback(async () => {
-    try {
-      setLoading(true)
-      const [payrollRes, employeeRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/office-payrolls`),
-        fetch(`${API_BASE_URL}/employees?status=Office`)
-      ])
-      const pData = await payrollRes.json()
-      const eData = await employeeRes.json()
-      if (pData.success) setPayrolls(pData.data)
-      if (eData.success) setEmployees(eData.data.filter(e => e.status === 'Office'))
-    } catch (error) { console.error(error) } finally { setLoading(false) }
+      try {
+        setLoading(true)
+        const [payrollRes, employeeRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/office-payrolls`),
+          fetch(`${API_BASE_URL}/employees?status=Office`)
+        ])
+        const pData = await payrollRes.json()
+        const eData = await employeeRes.json()
+        if (pData.success) setPayrolls(pData.data)
+        if (eData.success) setEmployees(eData.data.filter(e => e.status === 'Office'))
+      } catch (error) { console.error(error) } finally { setLoading(false) }
   }, [])
 
   useEffect(() => { fetchData() }, [fetchData])
 
   const handleStatusUpdate = async (id, newStatus) => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/office-payrolls/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
-      })
-      if(res.ok) {
-        setPayrolls(prev => prev.map(p => p.id === id ? { ...p, status: newStatus } : p))
-        setToast(`Status updated to ${newStatus}`)
-      }
-    } catch (e) { console.error(e) }
+      try {
+        const res = await fetch(`${API_BASE_URL}/office-payrolls/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus })
+        })
+        if(res.ok) {
+          setPayrolls(prev => prev.map(p => p.id === id ? { ...p, status: newStatus } : p))
+          setToast(`Status updated to ${newStatus}`)
+        }
+      } catch (e) { console.error(e) }
   }
 
   const handleProcessPayroll = async (formData) => {
-    try {
-      setIsSubmitting(true)
-      const method = formData.id ? 'PUT' : 'POST'
-      const url = formData.id ? `${API_BASE_URL}/office-payrolls/${formData.id}` : `${API_BASE_URL}/office-payrolls`
-      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) })
-      const data = await res.json()
-      if (data.success) {
-        setIsProcessModalOpen(false)
-        fetchData()
-        setToast(formData.id ? 'Payroll updated' : 'Payroll created')
-      }
-    } catch (e) { console.error(e) } finally { setIsSubmitting(false) }
+      try {
+        setIsSubmitting(true)
+        const method = formData.id ? 'PUT' : 'POST'
+        const url = formData.id ? `${API_BASE_URL}/office-payrolls/${formData.id}` : `${API_BASE_URL}/office-payrolls`
+        const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) })
+        const data = await res.json()
+        if (data.success) {
+          setIsProcessModalOpen(false)
+          fetchData()
+          setToast(formData.id ? 'Payroll updated' : 'Payroll created')
+        }
+      } catch (e) { console.error(e) } finally { setIsSubmitting(false) }
   }
 
   const handleDelete = async () => {
@@ -206,17 +207,17 @@ const WorkersPayroll = () => {
   }
 
   return (
-    <div className="p-8 space-y-8 max-w-[1600px] mx-auto min-h-screen bg-gray-50/30">
+    <div className="p-8 space-y-8 max-w-[1600px] mx-auto min-h-screen bg-gray-50/30 font-mono">
       <AnimatePresence>{toast && <SuccessToast message={toast} onClose={() => setToast(null)} />}</AnimatePresence>
 
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-4xl font-extrabold text-gray-900">Office Payroll</h1>
+          <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">Office Payroll</h1>
           <p className="text-gray-500 mt-2">Manage salaries, government deductions, and pay slips.</p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" onClick={() => {/* Export Logic */}}><Download className="h-4 w-4 mr-2" /> Export</Button>
-          <Button className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20" onClick={() => { setSelectedPayroll(null); setIsProcessModalOpen(true); }}>
+          <Button variant="outline" onClick={() => {/* Export Logic */}} className="font-mono"><Download className="h-4 w-4 mr-2" /> Export</Button>
+          <Button className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/20 font-mono" onClick={() => { setSelectedPayroll(null); setIsProcessModalOpen(true); }}>
             <Plus className="h-4 w-4 mr-2" /> New Payroll
           </Button>
         </div>
@@ -229,51 +230,58 @@ const WorkersPayroll = () => {
         <StatsCard title="Employees Paid" value={stats.count} icon={Users} color="text-violet-600" bg="bg-violet-50" border="border-violet-100" isCurrency={false} />
       </div>
 
-      {/* --- Controls Bar (Full width Search + Status Filter) --- */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 space-y-4 z-20 relative">
-        {/* Row 1: Search (Full Width) */}
-        <div className="relative w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-          <input 
-            type="text" placeholder="Search by name, code, or position..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-            className="w-full pl-11 pr-4 py-3 bg-gray-50 border-gray-200 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-base"
-          />
-        </div>
+      {/* --- REFACTORED Controls Bar: Fixed Alignment --- */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 z-20 relative">
+        {/* CHANGED: items-center -> items-end to align inputs at the bottom */}
+        <div className="flex flex-col lg:flex-row gap-4 items-end w-full">
+            
+            {/* Search */}
+            <div className="relative flex-1 w-full">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                {/* CHANGED: py-2.5 -> py-2, rounded-xl -> rounded-lg, h-[38px] to match dropdown/date pickers */}
+                <input 
+                    type="text" placeholder="Search by name, code, or position..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-gray-50 border-gray-200 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 text-sm font-mono h-[38px]"
+                />
+            </div>
 
-        {/* Row 2: Filters */}
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="w-full md:w-auto">
-             <FilterDropdown 
-                label="Status" 
-                value={statusFilter} 
-                options={['All Status', 'Pending', 'Processing', 'Released', 'Paid', 'On Hold']} 
-                onChange={setStatusFilter} 
-                icon={Filter} 
-              />
-          </div>
+            {/* Filters Group */}
+            <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto items-end">
+                <div className="w-full sm:w-auto min-w-[160px]">
+                    <FilterDropdown 
+                        label="Status" 
+                        value={statusFilter} 
+                        options={['All Status', 'Pending', 'Processing', 'Released', 'Paid', 'On Hold']} 
+                        onChange={setStatusFilter} 
+                        icon={Filter} 
+                    />
+                </div>
 
-          <div className="flex items-center gap-2 w-full md:w-auto">
-             <div className="w-40 relative z-30">
-               <CustomDatePicker label="From" value={filterStartDate} onChange={setFilterStartDate} />
-             </div>
-             <div className="w-40 relative z-30">
-               {/* Added align="right" here */}
-               <CustomDatePicker label="To" value={filterEndDate} onChange={setFilterEndDate} align="right" />
-             </div>
-             {(filterStartDate || filterEndDate) && (
-               <button onClick={() => { setFilterStartDate(''); setFilterEndDate('') }} className="p-2 text-gray-400 hover:text-red-500 mt-6 transition-colors rounded-full hover:bg-gray-100">
-                 <X className="w-4 h-4" />
-               </button>
-             )}
-          </div>
+                <div className="flex items-end gap-2 w-full sm:w-auto">
+                    <div className="w-full sm:w-40 relative z-30">
+                        <CustomDatePicker label="From" value={filterStartDate} onChange={setFilterStartDate} />
+                    </div>
+                    <div className="w-full sm:w-40 relative z-30">
+                        <CustomDatePicker label="To" value={filterEndDate} onChange={setFilterEndDate} align="right" />
+                    </div>
+                    {/* Clear Button: Centered to the input height */}
+                    {(filterStartDate || filterEndDate) && (
+                        <div className="h-[38px] flex items-center">
+                            <button onClick={() => { setFilterStartDate(''); setFilterEndDate('') }} className="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-full hover:bg-gray-100">
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
       </div>
 
       <Card className="border-0 shadow-xl shadow-gray-200/50 bg-white rounded-2xl z-10 relative">
         <CardContent className="p-0">
-          <div className="w-full">
+          <div className="w-full overflow-x-auto">
             <table className="w-full text-sm text-left">
-              <thead className="bg-gray-50/50 text-gray-500 font-semibold uppercase tracking-wider text-xs border-b border-gray-100">
+              <thead className="bg-gray-50/50 text-gray-500 font-semibold uppercase tracking-wider text-xs border-b border-gray-100 font-mono">
                 <tr>
                   <th className="px-6 py-4">Employee</th>
                   <th className="px-6 py-4">Pay Period</th>
@@ -283,7 +291,7 @@ const WorkersPayroll = () => {
                   <th className="px-6 py-4 text-center">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-gray-50 font-mono">
                 {filteredPayrolls.length > 0 ? (
                   filteredPayrolls.map(item => (
                     <motion.tr key={item.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="hover:bg-blue-50/30 transition-colors group">
@@ -300,7 +308,7 @@ const WorkersPayroll = () => {
                         ₱{parseFloat(item.total_deductions).toLocaleString(undefined, {minimumFractionDigits: 2})}
                       </td>
                       <td className="px-6 py-4 text-right">
-                         <span className="font-bold text-blue-600 text-lg">₱{parseFloat(item.net_pay).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                         <span className="font-bold text-blue-600 text-md">₱{parseFloat(item.net_pay).toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
                       </td>
                       <td className="px-6 py-4 text-center relative">
                         <StatusCell id={item.id} currentStatus={item.status} onUpdate={handleStatusUpdate} />
@@ -331,7 +339,7 @@ const WorkersPayroll = () => {
 }
 
 const StatsCard = ({ title, amount, value, icon: Icon, color, bg, border, isCurrency = true }) => (
-  <div className={`bg-white rounded-xl p-6 shadow-sm border ${border} hover:-translate-y-1 transition-transform`}>
+  <div className={`bg-white rounded-xl p-6 shadow-sm border ${border} hover:-translate-y-1 transition-transform font-mono`}>
     <div className="flex justify-between items-start mb-4"><div className={`p-3 rounded-xl ${bg}`}><Icon className={`w-6 h-6 ${color}`} /></div></div>
     <h3 className="text-gray-500 text-sm font-medium mb-1">{title}</h3>
     <p className="text-2xl font-bold text-gray-900">{isCurrency ? `₱${amount?.toLocaleString(undefined, {minimumFractionDigits: 2})}` : value}</p>

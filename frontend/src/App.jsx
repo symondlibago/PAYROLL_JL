@@ -23,31 +23,17 @@ import './App.css'
 
 // Import components
 import Dashboard from './components/Dashboard'
-import ExpensesReceipts from './components/ExpensesReceipts'
-import EquipmentInventory from './components/EquipmentInventory'
-import TaskMonitoring from './components/TaskMonitoring'
 import WorkersPayroll from './components/WorkersPayroll'
 import Employee from './components/Employee'
-import SiteOperation from './components/SiteOperation'
-import VehicleMonitoring from './components/VehicleMonitoring'
-import Materials from './components/Materials'
-import RFIQueries from './components/RFIQueries'
 import LoginPage from './components/LoginPage'
 import { logout, isAuthenticated, getUser } from './utils/auth'
 
 // Navigation items with role-based access
 const navigationItems = [
   { path: '/', icon: Home, label: 'Dashboard', color: 'text-white', roles: ['admin'] },
-  { path: '/expenses', icon: Receipt, label: 'Expenses & Receipts', color: 'text-white', roles: ['admin'] },
-  { path: '/inventory', icon: Wrench, label: 'Equipment Inventory', color: 'text-white', roles: ['admin'] },
-  { path: '/tasks', icon: ClipboardList, label: 'Task Monitoring', color: 'text-white', roles: ['admin', 'designer'] },
   { path: '/payroll', icon: DollarSign, label: 'Workers Payroll', color: 'text-white', roles: ['admin'] },
   { path: '/employees', icon: Users, label: 'Employee Management', color: 'text-white', roles: ['admin'] },
-  { path: '/vehicles', icon: Car, label: 'Vehicle Monitoring', color: 'text-white', roles: ['admin'] },
-  { path: '/materials', icon: Package, label: 'Materials', color: 'text-white', roles: ['admin'] },
-  { path: '/rfi-queries', icon: FileQuestion, label: 'RFI-Queries', color: 'text-white', roles: ['admin'] },
-  { path: '/site-operation', icon: MapPin, label: 'Site Operation', color: 'text-white', roles: ['admin'] },
-]
+  ]
 
 function Sidebar({ isCollapsed, toggleSidebar, onLogout, isMobile, closeMobileSidebar, userRole }) {
   const location = useLocation()
@@ -75,7 +61,7 @@ function Sidebar({ isCollapsed, toggleSidebar, onLogout, isMobile, closeMobileSi
               transition={{ duration: 0.2 }}
               className="text-lg font-bold bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-secondary)] bg-clip-text text-white"
             >
-              Monitoring Systems
+              Payroll System
             </motion.h1>
           )}
         </AnimatePresence>
@@ -268,17 +254,8 @@ function MainContent({ sidebarCollapsed, onLogout, isMobile, userRole }) {
           
           {/* Admin routes */}
           <Route path="/" element={<ProtectedComponent component={Dashboard} allowedRoles={['admin']} />} />
-          <Route path="/expenses" element={<ProtectedComponent component={ExpensesReceipts} allowedRoles={['admin']} />} />
-          <Route path="/inventory" element={<ProtectedComponent component={EquipmentInventory} allowedRoles={['admin']} />} />
           <Route path="/payroll" element={<ProtectedComponent component={WorkersPayroll} allowedRoles={['admin']} />} />
           <Route path="/employees" element={<ProtectedComponent component={Employee} allowedRoles={['admin']} />} />
-          <Route path="/vehicles" element={<ProtectedComponent component={VehicleMonitoring} allowedRoles={['admin']} />} />
-          <Route path="/materials" element={<ProtectedComponent component={Materials} allowedRoles={['admin']} />} />
-          <Route path="/rfi-queries" element={<ProtectedComponent component={RFIQueries} allowedRoles={['admin']} />} />
-          <Route path="/site-operation" element={<ProtectedComponent component={SiteOperation} allowedRoles={['admin']} />} />
-          
-          {/* Shared routes (admin and designer) */}
-          <Route path="/tasks" element={<ProtectedComponent component={TaskMonitoring} allowedRoles={['admin', 'designer']} />} />
         </Routes>
       </motion.div>
     </motion.main>

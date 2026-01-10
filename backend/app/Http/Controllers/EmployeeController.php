@@ -34,67 +34,61 @@ class EmployeeController extends Controller
     /**
      * Store a newly created employee in storage.
      */
-    public function store(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'position' => 'required|string|max:255',
-            'age' => 'required|integer|min:18|max:100',
-            'phone_number' => 'required|string|max:20',
-            'address' => 'required|string|max:500',
-            'group' => 'required|string|max:500',
-            'year_started' => 'required|integer|min:1900|max:' . date('Y'),
-            'status' => 'required|in:Site,Office',
-            'rate' => 'required|numeric|min:0'
-        ]);
+   // EmployeeController.php
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed',
-                'errors' => $validator->errors()
-            ], 422);
-        }
+   public function store(Request $request)
+{
+    $validator = Validator::make($request->all(), [
+        // Core Info
+        'name' => 'required|string|max:255',
+        'position' => 'required|string|max:255',
+        'status' => 'required|in:Site,Office',
+        'group' => 'nullable|string',
+        'id_number' => 'nullable|string',
+        
+        // Personal
+        'age' => 'nullable|integer',
+        'birthday' => 'nullable|date',
+        'phone_number' => 'nullable|string',
+        'address' => 'nullable|string',
+        
+        // Payroll
+        'rate' => 'required|numeric|min:0',
+        'date_started' => 'nullable|date',
+        'year_started' => 'nullable|integer',
+        
+        // Gov & Bank
+        'sss' => 'nullable|string',
+        'philhealth' => 'nullable|string',
+        'pagibig' => 'nullable|string',
+        'tin' => 'nullable|string',
+        'bank_type' => 'nullable|string',
+        'bank_account_number' => 'nullable|string',
+        'client_name' => 'nullable|string',
+        'department_location' => 'nullable|string',
+    ]);
 
-        try {
-            // Generate employee ID based on status
-            $employeeId = $this->generateEmployeeId($request->status);
-            
-            // Calculate hourly rate (rate / 8 hours)
-            $hourlyRate = $request->rate / 8;
-
-            $employee = [
-                'employee_id' => $employeeId,
-                'name' => $request->name,
-                'position' => $request->position,
-                'age' => $request->age,
-                'phone_number' => $request->phone_number,
-                'address' => $request->address,
-                'group' => $request->group,
-                'year_started' => $request->year_started,
-                'status' => $request->status,
-                'rate' => $request->rate,
-                'hourly_rate' => $hourlyRate,
-                'created_at' => now(),
-                'updated_at' => now()
-            ];
-
-            $insertedId = DB::table('employees')->insertGetId($employee);
-            $employee['id'] = $insertedId;
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Employee added successfully',
-                'data' => $employee
-            ], 201);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to add employee',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+    if ($validator->fails()) {
+        return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
     }
+
+    try {
+        DB::beginTransaction();
+
+        $hourlyRate = (float)$request->rate / 8;
+
+        $employee = \App\Models\Employee::create(array_merge($validator->validated(), [
+            'id_number' => $request->id_number,
+            'hourly_rate' => $hourlyRate,
+        ]));
+
+        DB::commit();
+        return response()->json(['success' => true, 'data' => $employee], 201);
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+    }
+}
 
     /**
      * Display the specified employee.
@@ -129,75 +123,20 @@ class EmployeeController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'position' => 'required|string|max:255',
-            'age' => 'required|integer|min:18|max:100',
-            'phone_number' => 'required|string|max:20',
-            'address' => 'required|string|max:500',
-            'group' => 'required|string|max:500',
-            'year_started' => 'required|integer|min:1900|max:' . date('Y'),
-            'status' => 'required|in:Site,Office',
-            'rate' => 'required|numeric|min:0'
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation failed',
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
         try {
-            $employee = DB::table('employees')->where('id', $id)->first();
-
-            if (!$employee) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Employee not found'
-                ], 404);
+            $exists = DB::table('employees')->where('id', $id)->exists();
+            if (!$exists) {
+                return response()->json(['success' => false, 'message' => 'Employee not found'], 404);
             }
 
-            // Check if status changed and generate new ID if needed
-            $employeeId = $employee->employee_id;
-            if ($employee->status !== $request->status) {
-                $employeeId = $this->generateEmployeeId($request->status);
-            }
-            
-            // Calculate hourly rate (rate / 8 hours)
-            $hourlyRate = $request->rate / 8;
+            $data = $request->except(['id', 'created_at', 'updated_at']);
+            $data['updated_at'] = now();
 
-            $updateData = [
-                'employee_id' => $employeeId,
-                'name' => $request->name,
-                'position' => $request->position,
-                'age' => $request->age,
-                'phone_number' => $request->phone_number,
-                'address' => $request->address,
-                'group' => $request->group,
-                'year_started' => $request->year_started,
-                'status' => $request->status,
-                'rate' => $request->rate,
-                'hourly_rate' => $hourlyRate,
-                'updated_at' => now()
-            ];
+            DB::table('employees')->where('id', $id)->update($data);
 
-            DB::table('employees')->where('id', $id)->update($updateData);
-
-            $updatedEmployee = DB::table('employees')->where('id', $id)->first();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Employee updated successfully',
-                'data' => $updatedEmployee
-            ]);
+            return response()->json(['success' => true, 'message' => 'Employee updated successfully']);
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to update employee',
-                'error' => $e->getMessage()
-            ], 500);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
 

@@ -14,18 +14,29 @@ class Employee extends Model
      *
      * @var array<int, string>
      */
+    // Employee.php
     protected $fillable = [
-        'employee_id',
-        'name',
-        'position',
-        'age',
-        'phone_number',
-        'address',
-        'group',
+        'id_number', 
+        'name', 
+        'position', 
+        'age', 
+        'birthday',
+        'phone_number', 
+        'address', 
+        'group', 
+        'date_started', 
         'year_started',
-        'status',
-        'rate',
-        'hourly_rate',
+        'status', 
+        'rate', 
+        'hourly_rate', 
+        'sss', 
+        'philhealth', 
+        'pagibig',
+        'tin', 
+        'client_name', 
+        'department_location', 
+        'bank_account_number', 
+        'bank_type'
     ];
 }
 
