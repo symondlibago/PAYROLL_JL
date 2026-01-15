@@ -11,48 +11,27 @@ class OfficePayrollController extends Controller
 {
     public function index()
     {
-        // optimized query selecting only needed columns if necessary
         $payrolls = OfficePayroll::orderBy('created_at', 'desc')->get();
         return response()->json(['success' => true, 'data' => $payrolls]);
     }
 
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'employee_id' => 'required|exists:employees,id',
-            'pay_period_start' => 'required|date',
-            'pay_period_end' => 'required|date|after_or_equal:pay_period_start',
-            'total_working_days' => 'required|numeric|min:0',
-            'total_late_minutes' => 'nullable|numeric|min:0',
-            'total_overtime_hours' => 'nullable|numeric|min:0',
-            'sss_deduction' => 'nullable|numeric|min:0',
-            'philhealth_deduction' => 'nullable|numeric|min:0',
-            'pagibig_deduction' => 'nullable|numeric|min:0',
-            'gbond_deduction' => 'nullable|numeric|min:0',
-            'others_deduction' => 'nullable|numeric|min:0',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
-        }
+        $validator = $this->getValidator($request);
+        if ($validator->fails()) return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
 
         try {
             $employee = DB::table('employees')->where('id', $request->employee_id)->first();
-
-            // Calculate amounts
             $calc = $this->calculatePayrollValues($employee, $request->all());
 
             $payrollData = array_merge([
                 'employee_id' => $employee->id,
                 'employee_name' => $employee->name,
                 'employee_group' => $employee->group,
-                'employee_code' => $employee->employee_id,
+                'employee_code' => $employee->employee_id ?? '',
                 'position' => $employee->position,
-                'pay_period_start' => $request->pay_period_start,
-                'pay_period_end' => $request->pay_period_end,
-                'daily_rate' => $employee->rate,
-                'hourly_rate' => $employee->hourly_rate,
                 'status' => 'Pending',
+                'mode_of_payment' => $request->mode_of_payment,
                 'created_at' => now(),
                 'updated_at' => now()
             ], $calc);
@@ -74,14 +53,10 @@ class OfficePayrollController extends Controller
         try {
             $employee = DB::table('employees')->where('id', $payroll->employee_id)->first();
             
-            // Merge existing data with request data to ensure calculations use latest values
             $currentData = $payroll->toArray();
             $mergedData = array_merge($currentData, $request->all());
             
-            // Recalculate based on merged data
             $calc = $this->calculatePayrollValues($employee, $mergedData);
-            
-            // Update fields
             $payroll->update(array_merge($request->all(), $calc));
 
             return response()->json(['success' => true, 'message' => 'Payroll updated', 'data' => $payroll]);
@@ -96,47 +71,174 @@ class OfficePayrollController extends Controller
         return response()->json(['success' => true, 'message' => 'Deleted successfully']);
     }
 
-    /**
-     * Centralized Calculation Logic
-     */
+    private function getValidator($request) {
+        return Validator::make($request->all(), [
+            'employee_id' => 'required|exists:employees,id',
+            'pay_period_start' => 'required|date',
+            'pay_period_end' => 'required|date|after_or_equal:pay_period_start',
+            'mode_of_payment' => 'nullable|string',
+            
+            'total_days_worked' => 'required|numeric|min:0',
+            'total_hours_worked' => 'nullable|numeric|min:0',
+            'total_late_minutes' => 'nullable|numeric|min:0',
+
+            // Holidays
+            'sunday_rest_day_days' => 'nullable|numeric|min:0',
+            'sunday_rest_day_hours' => 'nullable|numeric|min:0',
+            'special_day_days' => 'nullable|numeric|min:0',
+            'special_day_hours' => 'nullable|numeric|min:0',
+            'special_day_rest_day_days' => 'nullable|numeric|min:0',
+            'special_day_rest_day_hours' => 'nullable|numeric|min:0',
+            'regular_holiday_days' => 'nullable|numeric|min:0',
+            'regular_holiday_hours' => 'nullable|numeric|min:0',
+            'regular_holiday_rest_day_days' => 'nullable|numeric|min:0',
+            'regular_holiday_rest_day_hours' => 'nullable|numeric|min:0',
+            
+            // Night Diff (New Days Added)
+            'nd_ordinary_days' => 'nullable|numeric|min:0',
+            'nd_ordinary_hours' => 'nullable|numeric|min:0',
+            'nd_rest_special_days' => 'nullable|numeric|min:0',
+            'nd_rest_special_hours' => 'nullable|numeric|min:0',
+            'nd_regular_holiday_days' => 'nullable|numeric|min:0',
+            'nd_regular_holiday_hours' => 'nullable|numeric|min:0',
+
+            // OT
+            'ot_regular_hours' => 'nullable|numeric|min:0',
+            'ot_rest_day_hours' => 'nullable|numeric|min:0',
+            'ot_special_day_hours' => 'nullable|numeric|min:0',
+            'ot_special_rest_day_hours' => 'nullable|numeric|min:0',
+            'ot_regular_holiday_hours' => 'nullable|numeric|min:0',
+
+            'allowance_amount' => 'nullable|numeric|min:0',
+            'sss_deduction' => 'nullable|numeric|min:0',
+            'philhealth_deduction' => 'nullable|numeric|min:0',
+            'pagibig_deduction' => 'nullable|numeric|min:0',
+        ]);
+    }
+
     private function calculatePayrollValues($employee, $data)
     {
-        $dailyRate = $employee->rate;
-        $hourlyRate = $employee->hourly_rate;
+        $dailyRate = floatval($employee->rate);
+        $hourlyRate = floatval($employee->hourly_rate);
 
-        $workingDays = $data['total_working_days'] ?? 0;
-        $lateMins = $data['total_late_minutes'] ?? 0;
-        $otHours = $data['total_overtime_hours'] ?? 0;
+        // 1. Basic Attendance
+        $daysWorked = floatval($data['total_days_worked'] ?? 0);
+        $hoursWorked = floatval($data['total_hours_worked'] ?? 0);
+        $basicSalary = ($dailyRate * $daysWorked) + ($hourlyRate * $hoursWorked);
 
-        // Deductions Inputs
-        $sss = $data['sss_deduction'] ?? 0;
-        $philhealth = $data['philhealth_deduction'] ?? 0;
-        $pagibig = $data['pagibig_deduction'] ?? 0;
-        $gbond = $data['gbond_deduction'] ?? 0;
-        $others = $data['others_deduction'] ?? 0;
-
-        // Computations
-        $basicSalary = $dailyRate * $workingDays;
-        $overtimePay = $hourlyRate * 1.25 * $otHours; // Standard OT is usually 1.25, adjust if needed
+        // 2. Late Deduction
+        $lateMins = floatval($data['total_late_minutes'] ?? 0);
         $lateDeduction = ($hourlyRate / 60) * $lateMins;
-        
-        $grossPay = $basicSalary + $overtimePay;
-        $totalDeductions = $lateDeduction + $sss + $philhealth + $pagibig + $gbond + $others;
+
+        // Helper for rate calc
+        $calc = function($dVal, $hVal, $mult) use ($dailyRate, $hourlyRate) {
+            return (floatval($dVal) * $dailyRate * $mult) + (floatval($hVal) * $hourlyRate * $mult);
+        };
+
+        // 3. Holidays
+        $holidayPay = 0;
+        $holidayPay += $calc($data['sunday_rest_day_days'] ?? 0, $data['sunday_rest_day_hours'] ?? 0, 1.30);
+        $holidayPay += $calc($data['special_day_days'] ?? 0, $data['special_day_hours'] ?? 0, 1.30);
+        $holidayPay += $calc($data['special_day_rest_day_days'] ?? 0, $data['special_day_rest_day_hours'] ?? 0, 1.50);
+        $holidayPay += $calc($data['regular_holiday_days'] ?? 0, $data['regular_holiday_hours'] ?? 0, 2.00);
+        $holidayPay += $calc($data['regular_holiday_rest_day_days'] ?? 0, $data['regular_holiday_rest_day_hours'] ?? 0, 2.60);
+
+        // 4. Night Differential (Updated to use Days + Hours)
+        $nightDiffPay = 0;
+        $nightDiffPay += $calc($data['nd_ordinary_days'] ?? 0, $data['nd_ordinary_hours'] ?? 0, 1.10);
+        $nightDiffPay += $calc($data['nd_rest_special_days'] ?? 0, $data['nd_rest_special_hours'] ?? 0, 1.43);
+        $nightDiffPay += $calc($data['nd_regular_holiday_days'] ?? 0, $data['nd_regular_holiday_hours'] ?? 0, 2.20);
+
+        // 5. Overtime
+        $otPay = 0;
+        $otPay += floatval($data['ot_regular_hours'] ?? 0) * $hourlyRate * 1.25;
+        $otPay += floatval($data['ot_rest_day_hours'] ?? 0) * $hourlyRate * 1.69;
+        $otPay += floatval($data['ot_special_day_hours'] ?? 0) * $hourlyRate * 1.69;
+        $otPay += floatval($data['ot_special_rest_day_hours'] ?? 0) * $hourlyRate * 1.95;
+        $otPay += floatval($data['ot_regular_holiday_hours'] ?? 0) * $hourlyRate * 2.60;
+
+        // 6. Allowance
+        $allowance = floatval($data['allowance_amount'] ?? 0);
+
+        // GROSS
+        $grossPay = $basicSalary + $holidayPay + $nightDiffPay + $otPay + $allowance;
+
+        // 7. Deductions
+        $deductions = [
+            'sss' => floatval($data['sss_deduction'] ?? 0),
+            'philhealth' => floatval($data['philhealth_deduction'] ?? 0),
+            'pagibig' => floatval($data['pagibig_deduction'] ?? 0),
+            'proc_fee' => floatval($data['proc_fee_deduction'] ?? 0),
+            'gbond' => floatval($data['gbond_deduction'] ?? 0),
+            'uniform' => floatval($data['uniform_deduction'] ?? 0),
+            'sss_loan' => floatval($data['sss_loan_deduction'] ?? 0),
+            'pagibig_loan' => floatval($data['pagibig_loan_deduction'] ?? 0),
+            'sss_calamity' => floatval($data['sss_calamity_loan_deduction'] ?? 0),
+            'pagibig_calamity' => floatval($data['pagibig_calamity_loan_deduction'] ?? 0),
+            'others' => floatval($data['others_deduction'] ?? 0),
+        ];
+
+        $totalDeductions = $lateDeduction + array_sum($deductions);
         $netPay = $grossPay - $totalDeductions;
 
         return [
-            'total_working_days' => $workingDays,
+            // Basic Inputs
+            'pay_period_start' => $data['pay_period_start'],
+            'pay_period_end' => $data['pay_period_end'],
+            'daily_rate' => $dailyRate,
+            'hourly_rate' => $hourlyRate,
+            'total_days_worked' => $daysWorked,
+            'total_hours_worked' => $hoursWorked,
             'total_late_minutes' => $lateMins,
-            'total_overtime_hours' => $otHours,
+
+            // Holidays
+            'sunday_rest_day_days' => floatval($data['sunday_rest_day_days'] ?? 0),
+            'sunday_rest_day_hours' => floatval($data['sunday_rest_day_hours'] ?? 0),
+            'special_day_days' => floatval($data['special_day_days'] ?? 0),
+            'special_day_hours' => floatval($data['special_day_hours'] ?? 0),
+            'special_day_rest_day_days' => floatval($data['special_day_rest_day_days'] ?? 0),
+            'special_day_rest_day_hours' => floatval($data['special_day_rest_day_hours'] ?? 0),
+            'regular_holiday_days' => floatval($data['regular_holiday_days'] ?? 0),
+            'regular_holiday_hours' => floatval($data['regular_holiday_hours'] ?? 0),
+            'regular_holiday_rest_day_days' => floatval($data['regular_holiday_rest_day_days'] ?? 0),
+            'regular_holiday_rest_day_hours' => floatval($data['regular_holiday_rest_day_hours'] ?? 0),
+
+            // ND (New)
+            'nd_ordinary_days' => floatval($data['nd_ordinary_days'] ?? 0),
+            'nd_ordinary_hours' => floatval($data['nd_ordinary_hours'] ?? 0),
+            'nd_rest_special_days' => floatval($data['nd_rest_special_days'] ?? 0),
+            'nd_rest_special_hours' => floatval($data['nd_rest_special_hours'] ?? 0),
+            'nd_regular_holiday_days' => floatval($data['nd_regular_holiday_days'] ?? 0),
+            'nd_regular_holiday_hours' => floatval($data['nd_regular_holiday_hours'] ?? 0),
+
+            // OT
+            'ot_regular_hours' => floatval($data['ot_regular_hours'] ?? 0),
+            'ot_rest_day_hours' => floatval($data['ot_rest_day_hours'] ?? 0),
+            'ot_special_day_hours' => floatval($data['ot_special_day_hours'] ?? 0),
+            'ot_special_rest_day_hours' => floatval($data['ot_special_rest_day_hours'] ?? 0),
+            'ot_regular_holiday_hours' => floatval($data['ot_regular_holiday_hours'] ?? 0),
+
+            // Results
             'basic_salary' => round($basicSalary, 2),
-            'overtime_pay' => round($overtimePay, 2),
-            'late_deduction' => round($lateDeduction, 2),
-            'sss_deduction' => $sss,
-            'philhealth_deduction' => $philhealth,
-            'pagibig_deduction' => $pagibig,
-            'gbond_deduction' => $gbond,
-            'others_deduction' => $others,
+            'holiday_pay' => round($holidayPay, 2),
+            'night_diff_pay' => round($nightDiffPay, 2),
+            'overtime_pay' => round($otPay, 2),
+            'allowance_amount' => round($allowance, 2),
             'gross_pay' => round($grossPay, 2),
+            
+            // Deductions
+            'late_deduction' => round($lateDeduction, 2),
+            'sss_deduction' => $deductions['sss'],
+            'philhealth_deduction' => $deductions['philhealth'],
+            'pagibig_deduction' => $deductions['pagibig'],
+            'proc_fee_deduction' => $deductions['proc_fee'],
+            'gbond_deduction' => $deductions['gbond'],
+            'uniform_deduction' => $deductions['uniform'],
+            'sss_loan_deduction' => $deductions['sss_loan'],
+            'pagibig_loan_deduction' => $deductions['pagibig_loan'],
+            'sss_calamity_loan_deduction' => $deductions['sss_calamity'],
+            'pagibig_calamity_loan_deduction' => $deductions['pagibig_calamity'],
+            'others_deduction' => $deductions['others'],
             'total_deductions' => round($totalDeductions, 2),
             'net_pay' => round($netPay, 2)
         ];

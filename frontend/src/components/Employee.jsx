@@ -84,6 +84,7 @@ export default function Employee() {
                   <th className="p-5 text-[11px] font-bold text-gray-500 uppercase">Full Name</th>
                   <th className="p-5 text-[11px] font-bold text-gray-500 uppercase">Position</th>
                   <th className="p-5 text-[11px] font-bold text-gray-500 uppercase">Client</th>
+                  <th className="p-5 text-[11px] font-bold text-gray-500 uppercase">Location</th>
                   <th className="p-5 text-[11px] font-bold text-gray-500 uppercase text-right">Actions</th>
                 </tr>
               </thead>
@@ -94,6 +95,7 @@ export default function Employee() {
                     <td className="p-5 font-bold text-gray-900">{emp.name}</td>
                     <td className="p-5 text-sm text-gray-600">{emp.position}</td>
                     <td className="p-5 text-sm text-gray-600">{emp.client_name}</td>
+                    <td className="p-5 text-sm text-gray-600">{emp.department_location}</td>
                     <td className="p-5 text-right">
                       <div className="flex justify-end gap-2">
                         <Button onClick={() => handleEdit(emp)} variant="ghost" size="sm" className="text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg"><Edit2 className="h-4 w-4" /></Button>

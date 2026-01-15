@@ -54,6 +54,7 @@ class EmployeeController extends Controller
         
         // Payroll
         'rate' => 'required|numeric|min:0',
+        'monthly_rate' => 'required|numeric|min:0',
         'date_started' => 'nullable|date',
         'year_started' => 'nullable|integer',
         

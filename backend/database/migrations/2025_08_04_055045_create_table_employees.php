@@ -26,6 +26,7 @@ public function up(): void
         $table->integer('year_started')->nullable();
         $table->enum('status', ['Site', 'Office']);
         $table->decimal('rate', 10, 2);
+        $table->decimal('monthly_rate', 10, 2)->nullable();
         $table->decimal('hourly_rate', 10, 2);
         
         // Financial & Banking

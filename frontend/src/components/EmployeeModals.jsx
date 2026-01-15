@@ -40,6 +40,7 @@ export const AddEmployeeModal = ({ isOpen, onClose, onRefresh, employeeData = nu
     year_started: '', 
     status: 'Office', 
     rate: '', 
+    monthly_rate: '',
     sss: '',
     philhealth: '', 
     pagibig: '', 
@@ -59,8 +60,8 @@ export const AddEmployeeModal = ({ isOpen, onClose, onRefresh, employeeData = nu
       setFormData({
         id_number: '', name: '', position: '', age: '', birthday: null,
         phone_number: '', address: '', group: '', date_started: null,
-        year_started: '', status: 'Office', rate: '', sss: '',
-        philhealth: '', pagibig: '', tin: '', client_name: '',
+        year_started: '', status: 'Office', rate: '', monthly_rate: '',
+        sss: '', philhealth: '', pagibig: '', tin: '', client_name: '',
         department_location: '', bank_account_number: '', bank_type: ''
       });
     }
@@ -244,6 +245,17 @@ export const AddEmployeeModal = ({ isOpen, onClose, onRefresh, employeeData = nu
           />
         </div>
       </FormField>
+
+      <FormField label="Monthly Rate (₱)">
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-700 text-sm font-bold">₱</span>
+                  <input 
+                    type="number" value={formData.monthly_rate} onChange={e => setFormData({...formData, monthly_rate: e.target.value})}
+                    className="w-full pl-8 pr-4 py-2.5 bg-gray-50 border border-gray-400 rounded-xl focus:ring-2 focus:ring-indigo-500/20 outline-none text-sm font-bold text-gray-900"
+                    placeholder="0.00"
+                  />
+                </div>
+              </FormField>
 
               <FormField label="SSS No."><input type="text" value={formData.sss} onChange={e => setFormData({...formData, sss: e.target.value})} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-400 rounded-xl text-sm text-gray-900 font-medium" /></FormField>
               <FormField label="PhilHealth"><input type="text" value={formData.philhealth} onChange={e => setFormData({...formData, philhealth: e.target.value})} className="w-full px-4 py-2.5 bg-gray-50 border border-gray-400 rounded-xl text-sm text-gray-900 font-medium" /></FormField>

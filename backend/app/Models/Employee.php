@@ -28,6 +28,7 @@ class Employee extends Model
         'year_started',
         'status', 
         'rate', 
+        'monthly_rate', 
         'hourly_rate', 
         'sss', 
         'philhealth', 
