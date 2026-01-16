@@ -100,6 +100,10 @@ export const SearchableSelect = ({ label, options, value, onChange, placeholder 
 // --- 2. CUSTOM DATE PICKER (Updated with 'align' prop) ---
 export const CustomDatePicker = ({ label, value, onChange, disabled, align = "left" }) => {
   const [isOpen, setIsOpen] = useState(false)
+  
+  // NEW: State to toggle between calendar view and year list
+  const [isYearSelection, setIsYearSelection] = useState(false) 
+  
   const wrapperRef = useRef(null)
   
   const dateValue = value ? new Date(value) : new Date()
@@ -109,6 +113,7 @@ export const CustomDatePicker = ({ label, value, onChange, disabled, align = "le
     const handleClickOutside = (event) => {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
         setIsOpen(false)
+        setIsYearSelection(false) // Reset view on close
       }
     }
     document.addEventListener("mousedown", handleClickOutside)
@@ -129,6 +134,15 @@ export const CustomDatePicker = ({ label, value, onChange, disabled, align = "le
   const changeMonth = (offset) => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + offset, 1))
   }
+
+  // NEW: Handle clicking a year from the list
+  const handleYearChange = (year) => {
+    setCurrentMonth(new Date(year, currentMonth.getMonth(), 1))
+    setIsYearSelection(false)
+  }
+
+  // Generate a range of years (e.g., 1950 - 2050)
+  const years = Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - 50 + i)
 
   const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
 
@@ -163,43 +177,77 @@ export const CustomDatePicker = ({ label, value, onChange, disabled, align = "le
                 ${align === 'right' ? 'right-0' : 'left-0'} 
               `}
             >
+              {/* Header Navigation */}
               <div className="flex justify-between items-center mb-4">
-                <button onClick={() => changeMonth(-1)} className="p-1 hover:bg-gray-100 rounded-full"><ChevronLeft className="w-4 h-4 text-gray-600"/></button>
-                <div className="font-semibold text-sm text-gray-800">
+                {/* Hide arrows during year selection to avoid confusion */}
+                {!isYearSelection ? (
+                   <button onClick={() => changeMonth(-1)} className="p-1 hover:bg-gray-100 rounded-full"><ChevronLeft className="w-4 h-4 text-gray-600"/></button>
+                ) : <div className="w-6"></div>}
+                
+                {/* CHANGED: This is now a clickable button */}
+                <button 
+                  onClick={() => setIsYearSelection(!isYearSelection)}
+                  className="font-semibold text-sm text-gray-800 hover:bg-gray-100 px-2 py-1 rounded transition-colors"
+                >
                   {months[currentMonth.getMonth()]} {currentMonth.getFullYear()}
-                </div>
-                <button onClick={() => changeMonth(1)} className="p-1 hover:bg-gray-100 rounded-full"><ChevronRight className="w-4 h-4 text-gray-600"/></button>
+                </button>
+
+                {!isYearSelection ? (
+                  <button onClick={() => changeMonth(1)} className="p-1 hover:bg-gray-100 rounded-full"><ChevronRight className="w-4 h-4 text-gray-600"/></button>
+                ) : <div className="w-6"></div>}
               </div>
 
-              <div className="grid grid-cols-7 gap-1 text-center">
-                {['S','M','T','W','T','F','S'].map(d => (
-                  <div key={d} className="text-xs font-bold text-gray-400 mb-2">{d}</div>
-                ))}
-                
-                {Array.from({ length: firstDayOfMonth }).map((_, i) => (
-                  <div key={`empty-${i}`} />
-                ))}
-
-                {Array.from({ length: daysInMonth }).map((_, i) => {
-                  const day = i + 1
-                  const isSelected = value && new Date(value).getDate() === day && 
-                                   new Date(value).getMonth() === currentMonth.getMonth() &&
-                                   new Date(value).getFullYear() === currentMonth.getFullYear()
-                  
-                  return (
+              {/* CONDITIONAL CONTENT */}
+              {isYearSelection ? (
+                // YEAR SELECTION VIEW
+                <div className="h-48 overflow-y-auto grid grid-cols-3 gap-2 pr-1 custom-scrollbar">
+                  {years.map(year => (
                     <button
-                      key={day}
-                      onClick={() => handleDateClick(day)}
+                      key={year}
+                      onClick={() => handleYearChange(year)}
                       className={`
-                        text-sm p-1.5 rounded-full hover:bg-blue-50 transition-colors
-                        ${isSelected ? 'bg-blue-600 text-white hover:bg-blue-700' : 'text-gray-700'}
+                        text-xs py-2 rounded-md transition-colors
+                        ${year === currentMonth.getFullYear() 
+                          ? 'bg-blue-600 text-white shadow-sm' 
+                          : 'text-gray-700 hover:bg-gray-100'}
                       `}
                     >
-                      {day}
+                      {year}
                     </button>
-                  )
-                })}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                // STANDARD CALENDAR VIEW (Your original code)
+                <div className="grid grid-cols-7 gap-1 text-center">
+                  {['S','M','T','W','T','F','S'].map(d => (
+                    <div key={d} className="text-xs font-bold text-gray-400 mb-2">{d}</div>
+                  ))}
+                  
+                  {Array.from({ length: firstDayOfMonth }).map((_, i) => (
+                    <div key={`empty-${i}`} />
+                  ))}
+
+                  {Array.from({ length: daysInMonth }).map((_, i) => {
+                    const day = i + 1
+                    const isSelected = value && new Date(value).getDate() === day && 
+                                     new Date(value).getMonth() === currentMonth.getMonth() &&
+                                     new Date(value).getFullYear() === currentMonth.getFullYear()
+                    
+                    return (
+                      <button
+                        key={day}
+                        onClick={() => handleDateClick(day)}
+                        className={`
+                          text-sm p-1.5 rounded-full hover:bg-blue-50 transition-colors
+                          ${isSelected ? 'bg-blue-600 text-white hover:bg-blue-700' : 'text-gray-700'}
+                        `}
+                      >
+                        {day}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

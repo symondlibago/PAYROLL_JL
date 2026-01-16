@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { X, Loader2, Calculator, Save, AlertCircle, Wallet, Calendar, Clock, Banknote, FileText } from 'lucide-react'
+import { X, Loader2, Calculator, Save, AlertCircle, Wallet, Calendar, Clock, Banknote, FileText, Filter } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { SearchableSelect, CustomDatePicker } from './CustomInputs'
 
-// ... Keep existing Utility Components (SectionHeader, InputGroup, DualInputGroup) ...
+// --- Utility Components ---
 const SectionHeader = ({ icon: Icon, title, color }) => (
   <div className={`flex items-center gap-2 mb-3 pb-1 border-b ${color ? `border-${color}-200 text-${color}-700` : 'border-gray-200 text-gray-700'}`}>
     <Icon className="w-4 h-4" />
@@ -68,11 +68,8 @@ const DetailRow = ({ label, value, isDeduction = false, isBold = false, subLabel
   </div>
 )
 
-// ... Keep ProcessPayrollModal code exactly as it was ...
+// --- PROCESS PAYROLL MODAL ---
 export const ProcessPayrollModal = ({ isOpen, onClose, onSubmit, employees, isLoading, initialData }) => {
-  // ... (Paste the entire ProcessPayrollModal code from previous response here) ...
-  // To save space, I assume you kept this part. If you need me to paste it again, let me know.
-  // ... It contains the DualInputGroup logic we added earlier.
   const [formData, setFormData] = useState({
     employee_id: '', status: 'Pending', pay_period_start: '', pay_period_end: '', mode_of_payment: '',
     total_days_worked: '', total_hours_worked: '', total_late_minutes: '',
@@ -94,7 +91,25 @@ export const ProcessPayrollModal = ({ isOpen, onClose, onSubmit, employees, isLo
     others_deduction: '', others_deduction_remarks: ''
   })
   
+  // New States for Filtering
+  const [filterClient, setFilterClient] = useState('')
+  const [filterDept, setFilterDept] = useState('')
   const [selectedEmployee, setSelectedEmployee] = useState(null)
+
+  // Extract unique options for filters
+  const uniqueClients = useMemo(() => [...new Set(employees.map(e => e.client_name).filter(Boolean))], [employees])
+  const uniqueDepts = useMemo(() => [...new Set(employees.map(e => e.department_location).filter(Boolean))], [employees])
+
+  // Filter the employees list based on selection
+  const filteredEmployeeOptions = useMemo(() => {
+    return employees
+      .filter(e => {
+        const matchesClient = !filterClient || e.client_name === filterClient
+        const matchesDept = !filterDept || e.department_location === filterDept
+        return matchesClient && matchesDept
+      })
+      .map(e => ({ value: e.id, label: `${e.name} (${e.position})` }))
+  }, [employees, filterClient, filterDept])
 
   useEffect(() => {
     if (isOpen) {
@@ -105,6 +120,8 @@ export const ProcessPayrollModal = ({ isOpen, onClose, onSubmit, employees, isLo
         const cleanState = Object.keys(formData).reduce((acc, key) => ({ ...acc, [key]: '' }), {})
         setFormData({ ...cleanState, status: 'Pending', mode_of_payment: 'Cash' })
         setSelectedEmployee(null)
+        setFilterClient('')
+        setFilterDept('')
       }
     }
   }, [isOpen, initialData, employees])
@@ -133,7 +150,6 @@ export const ProcessPayrollModal = ({ isOpen, onClose, onSubmit, employees, isLo
     const hourly = parseFloat(selectedEmployee.hourly_rate || 0)
     const getVal = (field) => parseFloat(formData[field]) || 0
 
-    // Earnings
     const basic = (rate * getVal('total_days_worked')) + (hourly * getVal('total_hours_worked'))
     const late = (hourly / 60) * getVal('total_late_minutes')
     
@@ -161,7 +177,6 @@ export const ProcessPayrollModal = ({ isOpen, onClose, onSubmit, employees, isLo
     const allowance = getVal('allowance_amount')
     const gross = basic + holiday + nd + ot + allowance
 
-    // Deductions
     const deductions = late + 
       getVal('sss_deduction') + getVal('philhealth_deduction') + getVal('pagibig_deduction') +
       getVal('proc_fee_deduction') + getVal('gbond_deduction') + getVal('uniform_deduction') +
@@ -196,14 +211,36 @@ export const ProcessPayrollModal = ({ isOpen, onClose, onSubmit, employees, isLo
             <div className="xl:col-span-8 space-y-6">
               
               {/* 1. Employee & Period */}
-              <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-4">
+                
+                {/* NEW: Filter Row (Only show if Adding new, disabled on Edit) */}
+                {!initialData && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4 border-b border-gray-100">
+                    <SearchableSelect 
+                      label="Filter by Client" 
+                      options={[{label: 'All Clients', value: ''}, ...uniqueClients.map(c => ({ label: c, value: c }))]}
+                      value={filterClient}
+                      onChange={setFilterClient}
+                      placeholder="All Clients"
+                    />
+                    <SearchableSelect 
+                      label="Filter by Dept/Location" 
+                      options={[{label: 'All Locations', value: ''}, ...uniqueDepts.map(d => ({ label: d, value: d }))]}
+                      value={filterDept}
+                      onChange={setFilterDept}
+                      placeholder="All Locations"
+                    />
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <SearchableSelect 
                     label="Employee" 
-                    options={employees.map(e => ({ value: e.id, label: `${e.name} (${e.position})` }))}
+                    options={filteredEmployeeOptions}
                     value={formData.employee_id}
                     onChange={handleEmployeeChange}
                     disabled={!!initialData}
+                    placeholder={filteredEmployeeOptions.length === 0 ? "No employees found" : "Select Employee..."}
                   />
                   <SearchableSelect 
                     label="Status" 
@@ -376,7 +413,7 @@ export const ProcessPayrollModal = ({ isOpen, onClose, onSubmit, employees, isLo
   )
 }
 
-// --- UPDATED VIEW PAYROLL MODAL ---
+// ... ViewPayrollModal and DeleteConfirmationModal (unchanged) ...
 export const ViewPayrollModal = ({ isOpen, onClose, payroll }) => {
   if (!isOpen || !payroll) return null
 
@@ -395,7 +432,6 @@ export const ViewPayrollModal = ({ isOpen, onClose, payroll }) => {
             <button onClick={onClose} className="p-1 hover:bg-white/20 rounded-full"><X className="w-5 h-5" /></button>
           </div>
           <div className="mt-4 flex justify-between text-xs text-slate-400 font-mono">
-             {/* FIXED DATE FORMATTING HERE */}
              <span>{formatDate(payroll.pay_period_start)} to {formatDate(payroll.pay_period_end)}</span>
              <span>ID: {payroll.id}</span>
           </div>
@@ -404,45 +440,29 @@ export const ViewPayrollModal = ({ isOpen, onClose, payroll }) => {
           <div>
             <h3 className="text-xs font-bold text-green-600 uppercase mb-3 border-b border-green-100 pb-1">Earnings</h3>
             <div className="space-y-1">
-              {/* Basic Salary */}
               <DetailRow label="Basic Salary" subLabel={`${payroll.total_days_worked} days`} value={parseFloat(payroll.basic_salary)} />
-              
-              {/* Holiday */}
               {(parseFloat(payroll.holiday_pay) > 0) && <DetailRow label="Holiday & Premiums" subLabel="Includes Rest/Special/Reg" value={parseFloat(payroll.holiday_pay)} />}
-              
-              {/* Night Diff */}
               {(parseFloat(payroll.night_diff_pay) > 0) && <DetailRow label="Night Differential" value={parseFloat(payroll.night_diff_pay)} />}
-              
-              {/* Overtime */}
               {(parseFloat(payroll.overtime_pay) > 0) && <DetailRow label="Overtime Pay" value={parseFloat(payroll.overtime_pay)} />}
-              
-              {/* Allowance */}
               {(parseFloat(payroll.allowance_amount) > 0) && <DetailRow label="Allowance" subLabel={payroll.allowance_remarks} value={parseFloat(payroll.allowance_amount)} />}
-              
               <div className="pt-2 mt-2 border-t border-gray-100"><DetailRow label="Total Gross Pay" value={parseFloat(payroll.gross_pay)} isBold /></div>
             </div>
           </div>
           <div>
             <h3 className="text-xs font-bold text-red-600 uppercase mb-3 border-b border-red-100 pb-1">Deductions</h3>
             <div className="space-y-1">
-              {/* NOW CHECKING EVERY SINGLE DEDUCTION FIELD EXPLICITLY */}
               {parseFloat(payroll.late_deduction) > 0 && <DetailRow label="Late Deduction" value={parseFloat(payroll.late_deduction)} isDeduction />}
               {parseFloat(payroll.sss_deduction) > 0 && <DetailRow label="SSS" value={parseFloat(payroll.sss_deduction)} isDeduction />}
               {parseFloat(payroll.philhealth_deduction) > 0 && <DetailRow label="PhilHealth" value={parseFloat(payroll.philhealth_deduction)} isDeduction />}
               {parseFloat(payroll.pagibig_deduction) > 0 && <DetailRow label="Pag-IBIG" value={parseFloat(payroll.pagibig_deduction)} isDeduction />}
-              
               {parseFloat(payroll.gbond_deduction) > 0 && <DetailRow label="G-Bond" value={parseFloat(payroll.gbond_deduction)} isDeduction />}
               {parseFloat(payroll.uniform_deduction) > 0 && <DetailRow label="Uniform" value={parseFloat(payroll.uniform_deduction)} isDeduction />}
               {parseFloat(payroll.proc_fee_deduction) > 0 && <DetailRow label="Processing Fee" value={parseFloat(payroll.proc_fee_deduction)} isDeduction />}
-              
-              {/* Loans - Broken down individually for clarity */}
               {parseFloat(payroll.sss_loan_deduction) > 0 && <DetailRow label="SSS Loan" value={parseFloat(payroll.sss_loan_deduction)} isDeduction />}
               {parseFloat(payroll.pagibig_loan_deduction) > 0 && <DetailRow label="Pag-IBIG Loan" value={parseFloat(payroll.pagibig_loan_deduction)} isDeduction />}
               {parseFloat(payroll.sss_calamity_loan_deduction) > 0 && <DetailRow label="SSS Calamity" value={parseFloat(payroll.sss_calamity_loan_deduction)} isDeduction />}
               {parseFloat(payroll.pagibig_calamity_loan_deduction) > 0 && <DetailRow label="Pag-IBIG Calamity" value={parseFloat(payroll.pagibig_calamity_loan_deduction)} isDeduction />}
-
               {parseFloat(payroll.others_deduction) > 0 && <DetailRow label="Others" subLabel={payroll.others_deduction_remarks} value={parseFloat(payroll.others_deduction)} isDeduction />}
-              
               <div className="pt-2 mt-2 border-t border-red-100"><DetailRow label="Total Deductions" value={parseFloat(payroll.total_deductions)} isDeduction isBold /></div>
             </div>
           </div>

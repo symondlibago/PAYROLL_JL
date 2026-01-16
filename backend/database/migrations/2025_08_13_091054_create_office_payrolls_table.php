@@ -13,6 +13,7 @@ return new class extends Migration
             $table->unsignedBigInteger("employee_id");
             $table->string("employee_name");
             $table->string("employee_group")->nullable();
+            $table->string("employee_code")->nullable();
             $table->string("position");
             
             $table->date("pay_period_start");

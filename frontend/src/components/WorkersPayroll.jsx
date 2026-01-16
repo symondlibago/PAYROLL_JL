@@ -10,9 +10,11 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ProcessPayrollModal, DeleteConfirmationModal, ViewPayrollModal } from '@/components/PayrollModals'
 import { ExportPayrollModal } from '@/components/ExportPayrollModal'
+// IMPORTS
 import { generatePayrollPDF } from '@/components/PayrollSheetPDF'
 import { generateDeductionPDF } from '@/components/DeductionSchedulePDF' 
 import { generateContributionsPDF } from '@/components/ContributionsPDF'
+import { generatePayslipPDF } from '@/components/EmployeePayslipPDF' // <-- IMPORT NEW GENERATOR
 import { CustomDatePicker } from '@/components/CustomInputs'
 import API_BASE_URL from './Config'
 
@@ -137,9 +139,7 @@ const WorkersPayroll = () => {
                  client_name: emp.client_name || 'N/A',
                  department_location: emp.department_location || 'N/A',
                  bank_type: p.mode_of_payment || emp.bank_type || 'Cash',
-                 
-                 // --- MAPPED FIELDS FOR PDF EXPORTS ---
-                 id_number: emp.id_number || p.employee_code || '', // <--- ADDED THIS LINE
+                 id_number: emp.id_number || p.employee_code || '',
                  sss_no: emp.sss || '',
                  philhealth_no: emp.philhealth || '',
                  pagibig_no: emp.pagibig || '',
@@ -204,7 +204,7 @@ const WorkersPayroll = () => {
     } catch (e) { console.error(e) } finally { setIsSubmitting(false) }
   }
 
-  // --- Generate PDF Handler ---
+  // --- UPDATED: Generate PDF Handler ---
   const handleGeneratePDF = (payPeriod, payDate, reportType) => {
     const commonProps = {
         payrolls: filteredPayrolls,
@@ -220,6 +220,9 @@ const WorkersPayroll = () => {
     } else if (reportType === 'contributions') {
         generateContributionsPDF(commonProps)
         setToast("Contributions Report downloaded successfully")
+    } else if (reportType === 'payslip') {
+        generatePayslipPDF(commonProps) // <-- CALLING NEW GENERATOR
+        setToast("Employee Payslips downloaded successfully")
     } else {
         generatePayrollPDF(commonProps)
         setToast("Payroll Sheet downloaded successfully")

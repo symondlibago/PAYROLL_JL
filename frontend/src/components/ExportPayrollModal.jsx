@@ -40,7 +40,8 @@ export const ExportPayrollModal = ({ isOpen, onClose, onGenerate, count }) => {
               options={[
                 { label: 'Payroll Sheet (Landscape)', value: 'payroll_sheet' },
                 { label: 'Deduction Schedule (Portrait)', value: 'deduction_schedule' },
-                { label: 'Contributions (Portrait)', value: 'contributions' }
+                { label: 'Contributions (Portrait)', value: 'contributions' },
+                { label: 'Employee Payslips (3/Page)', value: 'payslip' } // <-- ADDED
               ]}
               value={reportType}
               onChange={setReportType}

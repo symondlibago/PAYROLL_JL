@@ -24,14 +24,20 @@ class OfficePayrollController extends Controller
             $employee = DB::table('employees')->where('id', $request->employee_id)->first();
             $calc = $this->calculatePayrollValues($employee, $request->all());
 
+            // MERGE MANUAL DATA WITH CALCULATED DATA
             $payrollData = array_merge([
                 'employee_id' => $employee->id,
                 'employee_name' => $employee->name,
                 'employee_group' => $employee->group,
-                'employee_code' => $employee->employee_id ?? '',
+                'employee_code' => $employee->id_number ?? '', // <--- FIX: Changed from employee_id to id_number
                 'position' => $employee->position,
                 'status' => 'Pending',
                 'mode_of_payment' => $request->mode_of_payment,
+                
+                // <--- FIX: Added remarks here so they get saved
+                'allowance_remarks' => $request->allowance_remarks,
+                'others_deduction_remarks' => $request->others_deduction_remarks,
+                
                 'created_at' => now(),
                 'updated_at' => now()
             ], $calc);
@@ -57,6 +63,8 @@ class OfficePayrollController extends Controller
             $mergedData = array_merge($currentData, $request->all());
             
             $calc = $this->calculatePayrollValues($employee, $mergedData);
+            
+            // For updates, simply merging request->all() is usually enough as it contains the remarks
             $payroll->update(array_merge($request->all(), $calc));
 
             return response()->json(['success' => true, 'message' => 'Payroll updated', 'data' => $payroll]);
