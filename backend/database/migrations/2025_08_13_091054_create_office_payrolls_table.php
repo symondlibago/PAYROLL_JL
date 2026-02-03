@@ -28,30 +28,24 @@ return new class extends Migration
             $table->decimal("total_hours_worked", 8, 2)->default(0);
             $table->decimal("total_late_minutes", 8, 2)->default(0);
 
-            // --- SPECIAL RATES (Days & Hours) ---
+            // --- SPECIAL RATES ---
             $table->decimal("sunday_rest_day_days", 8, 2)->default(0);
             $table->decimal("sunday_rest_day_hours", 8, 2)->default(0);
-
             $table->decimal("special_day_days", 8, 2)->default(0);
             $table->decimal("special_day_hours", 8, 2)->default(0);
-
             $table->decimal("special_day_rest_day_days", 8, 2)->default(0);
             $table->decimal("special_day_rest_day_hours", 8, 2)->default(0);
-
             $table->decimal("regular_holiday_days", 8, 2)->default(0);
             $table->decimal("regular_holiday_hours", 8, 2)->default(0);
-
             $table->decimal("regular_holiday_rest_day_days", 8, 2)->default(0);
             $table->decimal("regular_holiday_rest_day_hours", 8, 2)->default(0);
 
-            // --- NIGHT DIFFERENTIAL (Added Days) ---
-            $table->decimal("nd_ordinary_days", 8, 2)->default(0);       // NEW
+            // --- NIGHT DIFFERENTIAL ---
+            $table->decimal("nd_ordinary_days", 8, 2)->default(0);
             $table->decimal("nd_ordinary_hours", 8, 2)->default(0);
-            
-            $table->decimal("nd_rest_special_days", 8, 2)->default(0);   // NEW
+            $table->decimal("nd_rest_special_days", 8, 2)->default(0);
             $table->decimal("nd_rest_special_hours", 8, 2)->default(0);
-            
-            $table->decimal("nd_regular_holiday_days", 8, 2)->default(0); // NEW
+            $table->decimal("nd_regular_holiday_days", 8, 2)->default(0);
             $table->decimal("nd_regular_holiday_hours", 8, 2)->default(0);
 
             // --- OVERTIME ---
@@ -66,16 +60,30 @@ return new class extends Migration
             $table->decimal("holiday_pay", 10, 2)->default(0);
             $table->decimal("night_diff_pay", 10, 2)->default(0);
             $table->decimal("overtime_pay", 10, 2)->default(0);
+            
             $table->decimal("allowance_amount", 10, 2)->default(0);
             $table->string("allowance_remarks")->nullable();
+
+            // === NEW ADDITIONS (EARNINGS) ===
+            $table->decimal("ecola", 10, 2)->default(0);
+            $table->decimal("adjustment_1", 10, 2)->default(0);
+            $table->decimal("adjustment_2", 10, 2)->default(0);
             
             $table->decimal("gross_pay", 10, 2)->default(0);
             
             // --- DEDUCTIONS ---
             $table->decimal("late_deduction", 10, 2)->default(0);
+            
+            // Employee Shares
             $table->decimal("sss_deduction", 10, 2)->default(0);
             $table->decimal("philhealth_deduction", 10, 2)->default(0);
             $table->decimal("pagibig_deduction", 10, 2)->default(0);
+
+            // === NEW ADDITIONS (EMPLOYER SHARES) ===
+            $table->decimal("sss_employer_share", 10, 2)->default(0);
+            $table->decimal("philhealth_employer_share", 10, 2)->default(0);
+            $table->decimal("pagibig_employer_share", 10, 2)->default(0);
+
             $table->decimal("proc_fee_deduction", 10, 2)->default(0);
             $table->decimal("gbond_deduction", 10, 2)->default(0);
             $table->decimal("uniform_deduction", 10, 2)->default(0);

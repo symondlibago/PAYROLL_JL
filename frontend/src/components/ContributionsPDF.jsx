@@ -15,11 +15,11 @@ export const generateContributionsPDF = ({
   const printHeader = () => {
     const pageWidth = doc.internal.pageSize.getWidth();
     doc.setFontSize(14);
-    doc.text("Job Link Provider", pageWidth / 2, 15, { align: "center" });
+    doc.text("AMAVI CORP.", pageWidth / 2, 15, { align: "center" });
     
     doc.setFontSize(10);
     doc.setFont('courier', 'normal');
-    doc.text("Location: Prince Padi blng", pageWidth / 2, 20, { align: "center" });
+    doc.text("5TH FLR., PRINCE PADI BLDG., MABULAY SUBD., LUNA ST., CAGAYAN DE ORO", pageWidth / 2, 20, { align: "center" });
     
     doc.setFontSize(12);
     doc.setFont('courier', 'bold');
@@ -36,11 +36,13 @@ export const generateContributionsPDF = ({
   let finalY = 55;
 
   // --- CONFIG ---
+  // Added 'erKey' to map the Employer Share fields
   const categories = [
     { 
       id: 'sss', 
       title: 'SSS CONTRIBUTIONS', 
       deductionKey: 'sss_deduction', 
+      erKey: 'sss_employer_share', // New mapping
       numberKey: 'sss_no',
       hasEC: true 
     },
@@ -48,6 +50,7 @@ export const generateContributionsPDF = ({
       id: 'philhealth', 
       title: 'PHILHEALTH CONTRIBUTIONS', 
       deductionKey: 'philhealth_deduction', 
+      erKey: 'philhealth_employer_share', // New mapping
       numberKey: 'philhealth_no',
       hasEC: false 
     },
@@ -55,6 +58,7 @@ export const generateContributionsPDF = ({
       id: 'pagibig', 
       title: 'PAG-IBIG CONTRIBUTIONS', 
       deductionKey: 'pagibig_deduction', 
+      erKey: 'pagibig_employer_share', // New mapping
       numberKey: 'pagibig_no',
       hasEC: false 
     }
@@ -78,9 +82,11 @@ export const generateContributionsPDF = ({
       let catTotal = 0;
 
       const bodyData = items.map(p => {
-        const ee = parseFloat(p[cat.deductionKey]);
-        const er = 0.00; // Placeholder: Add logic here if you have ER share in DB
-        const ec = cat.hasEC ? 0.00 : 0.00; // Placeholder: Add logic for EC
+        const ee = parseFloat(p[cat.deductionKey] || 0);
+        // FETCH ER SHARE VALUE
+        const er = parseFloat(p[cat.erKey] || 0); 
+        
+        const ec = cat.hasEC ? 0.00 : 0.00; // EC Logic can be added here if you have a field for it
         const total = ee + er + ec;
 
         catEE += ee;
@@ -92,14 +98,14 @@ export const generateContributionsPDF = ({
           p.id_number || '',
           p[cat.numberKey] || 'N/A',
           p.employee_name,
-          ee.toLocaleString(undefined, {minimumFractionDigits: 2}), // Employee Share
-          er.toLocaleString(undefined, {minimumFractionDigits: 2}), // Employer Share
+          ee.toLocaleString(undefined, {minimumFractionDigits: 2}), 
+          er.toLocaleString(undefined, {minimumFractionDigits: 2}), // Displays ER Value
         ];
 
         if (cat.hasEC) {
           row.push(ec.toLocaleString(undefined, {minimumFractionDigits: 2}));
         } else {
-          row.push('-'); // Placeholder for alignment if needed, or skip
+          row.push('-'); 
         }
 
         row.push(total.toLocaleString(undefined, {minimumFractionDigits: 2}));
@@ -121,7 +127,7 @@ export const generateContributionsPDF = ({
       if (cat.hasEC) {
         totalRow.push({ content: catEC.toLocaleString(undefined, {minimumFractionDigits: 2}), styles: { fontStyle: 'bold', lineWidth: { top: 0.1 } } });
       } else {
-        totalRow.push({ content: '-', styles: { fontStyle: 'bold', halign: 'center' } });
+        totalRow.push({ content: '-', styles: { fontStyle: 'bold', halign: 'center', lineWidth: { top: 0.1 } } });
       }
 
       totalRow.push({ content: catTotal.toLocaleString(undefined, {minimumFractionDigits: 2}), styles: { fontStyle: 'bold', lineWidth: { top: 0.1 } } });
@@ -145,13 +151,15 @@ export const generateContributionsPDF = ({
       // Table Headers based on category
       const headers = ['Emp. #', `${cat.id.toUpperCase()} #`, 'Employee Name', 'EE Share', 'ER Share'];
       if (cat.hasEC) headers.push('EC');
-      else headers.push('-'); // Filler to keep column count consistent if desired, or handle dynamically
+      else headers.push('-'); 
       headers.push('Total');
 
       autoTable(doc, {
         startY: finalY,
         theme: 'plain',
-        styles: { font: 'courier', fontSize: 8, textColor: [0, 0, 0], lineWidth: 0 },
+        // REMOVED BODY GRID LINES
+        styles: { font: 'courier', fontSize: 8, textColor: [0, 0, 0], lineWidth: 0 }, 
+        // KEPT HEADER GRID LINES
         headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', halign: 'center', lineWidth: 0.1, lineColor: [0, 0, 0] },
         columnStyles: {
           0: { cellWidth: 25 },

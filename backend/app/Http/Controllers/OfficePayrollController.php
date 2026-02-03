@@ -9,6 +9,10 @@ use App\Models\OfficePayroll;
 
 class OfficePayrollController extends Controller
 {
+    // ... index, store, update, destroy methods remain standard ...
+    
+    // (Ensure you copy the full file content, but I will highlight the changed methods below)
+
     public function index()
     {
         $payrolls = OfficePayroll::orderBy('created_at', 'desc')->get();
@@ -24,20 +28,16 @@ class OfficePayrollController extends Controller
             $employee = DB::table('employees')->where('id', $request->employee_id)->first();
             $calc = $this->calculatePayrollValues($employee, $request->all());
 
-            // MERGE MANUAL DATA WITH CALCULATED DATA
             $payrollData = array_merge([
                 'employee_id' => $employee->id,
                 'employee_name' => $employee->name,
                 'employee_group' => $employee->group,
-                'employee_code' => $employee->id_number ?? '', // <--- FIX: Changed from employee_id to id_number
+                'employee_code' => $employee->id_number ?? '',
                 'position' => $employee->position,
                 'status' => 'Pending',
                 'mode_of_payment' => $request->mode_of_payment,
-                
-                // <--- FIX: Added remarks here so they get saved
                 'allowance_remarks' => $request->allowance_remarks,
                 'others_deduction_remarks' => $request->others_deduction_remarks,
-                
                 'created_at' => now(),
                 'updated_at' => now()
             ], $calc);
@@ -58,13 +58,10 @@ class OfficePayrollController extends Controller
 
         try {
             $employee = DB::table('employees')->where('id', $payroll->employee_id)->first();
-            
             $currentData = $payroll->toArray();
             $mergedData = array_merge($currentData, $request->all());
-            
             $calc = $this->calculatePayrollValues($employee, $mergedData);
             
-            // For updates, simply merging request->all() is usually enough as it contains the remarks
             $payroll->update(array_merge($request->all(), $calc));
 
             return response()->json(['success' => true, 'message' => 'Payroll updated', 'data' => $payroll]);
@@ -84,6 +81,12 @@ class OfficePayrollController extends Controller
             'employee_id' => 'required|exists:employees,id',
             'pay_period_start' => 'required|date',
             'pay_period_end' => 'required|date|after_or_equal:pay_period_start',
+            
+            // New Earnings
+            'ecola' => 'nullable|numeric|min:0',
+            'adjustment_1' => 'nullable|numeric',
+            'adjustment_2' => 'nullable|numeric',
+
             'mode_of_payment' => 'nullable|string',
             
             'total_days_worked' => 'required|numeric|min:0',
@@ -138,7 +141,6 @@ class OfficePayrollController extends Controller
         $lateMins = floatval($data['total_late_minutes'] ?? 0);
         $lateDeduction = ($hourlyRate / 60) * $lateMins;
 
-        // Helper for rate calc
         $calc = function($dVal, $hVal, $mult) use ($dailyRate, $hourlyRate) {
             return (floatval($dVal) * $dailyRate * $mult) + (floatval($hVal) * $hourlyRate * $mult);
         };
@@ -151,7 +153,7 @@ class OfficePayrollController extends Controller
         $holidayPay += $calc($data['regular_holiday_days'] ?? 0, $data['regular_holiday_hours'] ?? 0, 2.00);
         $holidayPay += $calc($data['regular_holiday_rest_day_days'] ?? 0, $data['regular_holiday_rest_day_hours'] ?? 0, 2.60);
 
-        // 4. Night Differential (Updated to use Days + Hours)
+        // 4. Night Differential
         $nightDiffPay = 0;
         $nightDiffPay += $calc($data['nd_ordinary_days'] ?? 0, $data['nd_ordinary_hours'] ?? 0, 1.10);
         $nightDiffPay += $calc($data['nd_rest_special_days'] ?? 0, $data['nd_rest_special_hours'] ?? 0, 1.43);
@@ -165,13 +167,25 @@ class OfficePayrollController extends Controller
         $otPay += floatval($data['ot_special_rest_day_hours'] ?? 0) * $hourlyRate * 1.95;
         $otPay += floatval($data['ot_regular_holiday_hours'] ?? 0) * $hourlyRate * 2.60;
 
-        // 6. Allowance
+        // 6. Allowance & New Earnings
         $allowance = floatval($data['allowance_amount'] ?? 0);
+        $ecola = floatval($data['ecola'] ?? 0);
+        $adj1 = floatval($data['adjustment_1'] ?? 0);
+        $adj2 = floatval($data['adjustment_2'] ?? 0);
 
-        // GROSS
-        $grossPay = $basicSalary + $holidayPay + $nightDiffPay + $otPay + $allowance;
+        // GROSS (Now includes Ecola and Adjustments)
+        $grossPay = $basicSalary + $holidayPay + $nightDiffPay + $otPay + $allowance + $ecola + $adj1 + $adj2;
 
         // 7. Deductions
+        $sss = floatval($data['sss_deduction'] ?? 0);
+        $philhealth = floatval($data['philhealth_deduction'] ?? 0);
+        $pagibig = floatval($data['pagibig_deduction'] ?? 0);
+
+        // Employer Shares Calculation (Requested Logic)
+        $sssER = $sss * 2;
+        $philhealthER = $philhealth * 1; 
+        $pagibigER = $pagibig * 1; 
+
         $deductions = [
             'sss' => floatval($data['sss_deduction'] ?? 0),
             'philhealth' => floatval($data['philhealth_deduction'] ?? 0),
@@ -198,6 +212,9 @@ class OfficePayrollController extends Controller
             'total_days_worked' => $daysWorked,
             'total_hours_worked' => $hoursWorked,
             'total_late_minutes' => $lateMins,
+            'ecola' => $ecola,
+            'adjustment_1' => $adj1,
+            'adjustment_2' => $adj2,
 
             // Holidays
             'sunday_rest_day_days' => floatval($data['sunday_rest_day_days'] ?? 0),
@@ -233,12 +250,18 @@ class OfficePayrollController extends Controller
             'overtime_pay' => round($otPay, 2),
             'allowance_amount' => round($allowance, 2),
             'gross_pay' => round($grossPay, 2),
-            
-            // Deductions
+                        
+            // Deductions & Shares
             'late_deduction' => round($lateDeduction, 2),
             'sss_deduction' => $deductions['sss'],
             'philhealth_deduction' => $deductions['philhealth'],
             'pagibig_deduction' => $deductions['pagibig'],
+            
+            // Employer Shares
+            'sss_employer_share' => round($sssER, 2),
+            'philhealth_employer_share' => round($philhealthER, 2),
+            'pagibig_employer_share' => round($pagibigER, 2),
+
             'proc_fee_deduction' => $deductions['proc_fee'],
             'gbond_deduction' => $deductions['gbond'],
             'uniform_deduction' => $deductions['uniform'],

@@ -10,36 +10,30 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ProcessPayrollModal, DeleteConfirmationModal, ViewPayrollModal } from '@/components/PayrollModals'
 import { ExportPayrollModal } from '@/components/ExportPayrollModal'
-// IMPORTS
+
+// --- IMPORTS ---
 import { generatePayrollPDF } from '@/components/PayrollSheetPDF'
+import { generatePayrollExcel } from '@/components/PayrollSheetExcel' // <--- 1. IMPORT THIS
 import { generateDeductionPDF } from '@/components/DeductionSchedulePDF' 
 import { generateContributionsPDF } from '@/components/ContributionsPDF'
-import { generatePayslipPDF } from '@/components/EmployeePayslipPDF' // <-- IMPORT NEW GENERATOR
+import { generatePayslipPDF } from '@/components/EmployeePayslipPDF'
 import { CustomDatePicker } from '@/components/CustomInputs'
 import API_BASE_URL from './Config'
 
-// --- Filter Dropdown (Unchanged) ---
+// ... (FilterDropdown, StatusCell, SuccessToast components remain unchanged) ...
+// (I will omit them here for brevity, paste them back if you are copying the full file)
+
+// RE-INCLUDING HELPER COMPONENTS TO ENSURE FILE COMPLETENESS FOR COPY-PASTE:
 const FilterDropdown = ({ label, value, options, onChange, icon: Icon }) => {
   const [isOpen, setIsOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
-
-  const filteredOptions = options.filter(opt => 
-    opt.toString().toLowerCase().includes(searchTerm.toLowerCase())
-  )
-
+  const filteredOptions = options.filter(opt => opt.toString().toLowerCase().includes(searchTerm.toLowerCase()))
   return (
     <div className="relative font-mono w-full">
-      <button 
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg hover:bg-white hover:border-blue-300 transition-all text-sm font-medium text-gray-700 w-full justify-between h-[38px]"
-      >
-        <span className="flex items-center gap-2 truncate">
-          {Icon && <Icon className="w-4 h-4 text-gray-500 shrink-0" />}
-          <span className="truncate">{value || label}</span>
-        </span>
+      <button onClick={() => setIsOpen(!isOpen)} className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg hover:bg-white hover:border-blue-300 transition-all text-sm font-medium text-gray-700 w-full justify-between h-[38px]">
+        <span className="flex items-center gap-2 truncate">{Icon && <Icon className="w-4 h-4 text-gray-500 shrink-0" />}<span className="truncate">{value || label}</span></span>
         <ChevronDown className={`w-4 h-4 text-gray-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
-
       <AnimatePresence>
         {isOpen && (
           <>
@@ -82,19 +76,15 @@ const FilterDropdown = ({ label, value, options, onChange, icon: Icon }) => {
     </div>
   )
 }
-
 const StatusCell = ({ id, currentStatus, onUpdate }) => {
   const [isOpen, setIsOpen] = useState(false)
   const statusColors = { 'Pending': 'bg-amber-100 text-amber-700 border-amber-200', 'Processing': 'bg-blue-100 text-blue-700 border-blue-200', 'Released': 'bg-purple-100 text-purple-700 border-purple-200', 'Paid': 'bg-green-100 text-green-700 border-green-200', 'On Hold': 'bg-gray-100 text-gray-700 border-gray-200' }
-  return (
-    <div className="relative">
-      <button onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }} className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1 mx-auto hover:brightness-95 transition-all ${statusColors[currentStatus] || statusColors['Pending']}`}>{currentStatus}<ChevronDown className="w-3 h-3 opacity-50" /></button>
-      <AnimatePresence>{isOpen && (<><div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} /><motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="absolute top-full right-0 mt-2 w-36 bg-white rounded-lg shadow-xl border border-gray-100 z-50 overflow-hidden">{['Pending', 'Processing', 'Released', 'Paid', 'On Hold'].map(status => (<button key={status} onClick={(e) => { e.stopPropagation(); onUpdate(id, status); setIsOpen(false); }} className={`w-full text-left px-4 py-2.5 text-xs hover:bg-gray-50 transition-colors ${status === currentStatus ? 'font-bold text-blue-600 bg-blue-50' : 'text-gray-700'}`}>{status}</button>))}</motion.div></>)}</AnimatePresence>
-    </div>
-  )
+  return (<div className="relative"><button onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }} className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1 mx-auto hover:brightness-95 transition-all ${statusColors[currentStatus] || statusColors['Pending']}`}>{currentStatus}<ChevronDown className="w-3 h-3 opacity-50" /></button><AnimatePresence>{isOpen && (<><div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} /><motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="absolute top-full right-0 mt-2 w-36 bg-white rounded-lg shadow-xl border border-gray-100 z-50 overflow-hidden">{['Pending', 'Processing', 'Released', 'Paid', 'On Hold'].map(status => (<button key={status} onClick={(e) => { e.stopPropagation(); onUpdate(id, status); setIsOpen(false); }} className={`w-full text-left px-4 py-2.5 text-xs hover:bg-gray-50 transition-colors ${status === currentStatus ? 'font-bold text-blue-600 bg-blue-50' : 'text-gray-700'}`}>{status}</button>))}</motion.div></>)}</AnimatePresence></div>)
 }
 const SuccessToast = ({ message, onClose }) => { useEffect(() => { const t = setTimeout(onClose, 3000); return () => clearTimeout(t) }, [onClose]); return (<motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 50 }} className="fixed bottom-6 right-6 bg-white border-l-4 border-green-500 shadow-2xl rounded-lg p-4 flex items-center gap-3 z-50"><CheckCircle2 className="w-5 h-5 text-green-600" /><span className="text-sm font-medium text-gray-800">{message}</span></motion.div>) }
+const StatsCard = ({ title, amount, value, icon: Icon, color, bg, border, isCurrency = true }) => (<div className={`bg-white rounded-xl p-6 shadow-sm border ${border} hover:-translate-y-1 transition-transform font-mono`}><div className="flex justify-between items-start mb-4"><div className={`p-3 rounded-xl ${bg}`}><Icon className={`w-6 h-6 ${color}`} /></div></div><h3 className="text-gray-500 text-sm font-medium mb-1">{title}</h3><p className="text-2xl font-bold text-gray-900">{isCurrency ? `₱${amount?.toLocaleString(undefined, {minimumFractionDigits: 2})}` : value}</p></div>)
 
+// --- MAIN COMPONENT ---
 const WorkersPayroll = () => {
   const [payrolls, setPayrolls] = useState([])
   const [employees, setEmployees] = useState([])
@@ -204,7 +194,7 @@ const WorkersPayroll = () => {
     } catch (e) { console.error(e) } finally { setIsSubmitting(false) }
   }
 
-  // --- UPDATED: Generate PDF Handler ---
+  // --- UPDATED: Generate Export Handler ---
   const handleGeneratePDF = (payPeriod, payDate, reportType) => {
     const commonProps = {
         payrolls: filteredPayrolls,
@@ -214,18 +204,24 @@ const WorkersPayroll = () => {
         coverageTo: filterEndDate
     }
 
-    if (reportType === 'deduction_schedule') {
+    // 2. CHECK FOR EXCEL SPECIFICALLY
+    if (reportType === 'payroll_sheet_excel') {
+        generatePayrollExcel(commonProps)
+        setToast("Payroll Sheet (Excel) downloaded successfully")
+    } 
+    else if (reportType === 'deduction_schedule') {
         generateDeductionPDF(commonProps)
         setToast("Deduction Schedule downloaded successfully")
     } else if (reportType === 'contributions') {
         generateContributionsPDF(commonProps)
         setToast("Contributions Report downloaded successfully")
     } else if (reportType === 'payslip') {
-        generatePayslipPDF(commonProps) // <-- CALLING NEW GENERATOR
+        generatePayslipPDF(commonProps)
         setToast("Employee Payslips downloaded successfully")
     } else {
+        // Fallback for 'payroll_sheet'
         generatePayrollPDF(commonProps)
-        setToast("Payroll Sheet downloaded successfully")
+        setToast("Payroll Sheet (PDF) downloaded successfully")
     }
     
     setIsExportModalOpen(false)
@@ -262,6 +258,7 @@ const WorkersPayroll = () => {
         </div>
       </div>
 
+      {/* Stats Cards Row */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <StatsCard title="Total Gross Pay" amount={stats.gross} icon={TrendingUp} color="text-emerald-600" bg="bg-emerald-50" border="border-emerald-100" />
         <StatsCard title="Total Deductions" amount={stats.deductions} icon={TrendingDown} color="text-rose-600" bg="bg-rose-50" border="border-rose-100" />
@@ -297,7 +294,7 @@ const WorkersPayroll = () => {
           {(statusFilter !== 'All Status' || positionFilter || clientFilter || deptFilter || bankFilter || filterStartDate) && (
              <button 
                onClick={() => { setStatusFilter('All Status'); setPositionFilter(''); setClientFilter(''); setDeptFilter(''); setBankFilter(''); setFilterStartDate(''); setFilterEndDate(''); setSearchTerm(''); }}
-               className="px-4 py-2 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100 h-[38px] w-full"
+               className="px-4 py-2 text-xs font-bold bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors border border-red-100 h-[38px] w-full"
              >
                Reset All
              </button>
@@ -367,11 +364,4 @@ const WorkersPayroll = () => {
     </div>
   )
 }
-const StatsCard = ({ title, amount, value, icon: Icon, color, bg, border, isCurrency = true }) => (
-  <div className={`bg-white rounded-xl p-6 shadow-sm border ${border} hover:-translate-y-1 transition-transform font-mono`}>
-    <div className="flex justify-between items-start mb-4"><div className={`p-3 rounded-xl ${bg}`}><Icon className={`w-6 h-6 ${color}`} /></div></div>
-    <h3 className="text-gray-500 text-sm font-medium mb-1">{title}</h3>
-    <p className="text-2xl font-bold text-gray-900">{isCurrency ? `₱${amount?.toLocaleString(undefined, {minimumFractionDigits: 2})}` : value}</p>
-  </div>
-)
 export default WorkersPayroll

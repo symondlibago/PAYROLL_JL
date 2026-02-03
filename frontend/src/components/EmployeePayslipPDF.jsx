@@ -83,19 +83,18 @@ export const generatePayslipPDF = ({
     // 1. Title & Location (Centered)
     doc.setFontSize(12);
     doc.setFont('courier', 'bold');
-    doc.text("JOB LINK PROVIDER", pageWidth / 2, currentY + 6, { align: "center" });
+    doc.text("AMAVI CORP.", pageWidth / 2, currentY + 6, { align: "center" });
     
     doc.setFontSize(9);
     doc.setFont('courier', 'normal');
-    doc.text("Location: Prince Padi blng", pageWidth / 2, currentY + 10, { align: "center" });
+    doc.text("5TH FLR., PRINCE PADI BLDG., MABULAY SUBD., LUNA ST., CAGAYAN DE ORO", pageWidth / 2, currentY + 10, { align: "center" });
 
-    // 2. Pay Info Block (Left Side) - MATCHING OTHER EXPORTS
+    // 2. Pay Info Block (Left Side)
     doc.setFontSize(8);
     const leftX = 10;
     const headerY = currentY + 16;
     const lineHeight = 4;
 
-    // Formatting Dates exactly like the reports
     const formattedPayDate = payDate ? new Date(payDate).toLocaleDateString() : 'N/A';
     const fromStr = coverageFrom ? new Date(coverageFrom).toLocaleDateString() : 'N/A';
     const toStr = coverageTo ? new Date(coverageTo).toLocaleDateString() : 'N/A';
@@ -106,7 +105,6 @@ export const generatePayslipPDF = ({
     doc.text(`Pay Coverage: ${coverageStr}`, leftX, headerY + (lineHeight * 2));
 
     // 3. Employee Info Block (Right Side)
-    // We move this to the right to keep the left side clean for the "Header" look
     const rightX = 110; 
     
     doc.text(`Employee Name: ${p.employee_name.toUpperCase()}`, rightX, headerY);
@@ -133,9 +131,14 @@ export const generatePayslipPDF = ({
     
     let y1 = contentStartY + 5;
     
+    // Helper to print earnings line
     const printEarn = (label, qty, unit, amount) => {
         doc.setFontSize(7);
-        doc.text(`${label} (${qty}${unit})`, col1X, y1);
+        if(qty && unit) {
+           doc.text(`${label} (${qty}${unit})`, col1X, y1);
+        } else {
+           doc.text(`${label}`, col1X, y1); // Just label if no qty (like ECOLA)
+        }
         doc.text(amount, col1X + 65, y1, { align: 'right' });
         y1 += bodyLineHeight;
     };
@@ -152,14 +155,15 @@ export const generatePayslipPDF = ({
     if (daysWorked > 0) printEarn("Basic Salary", daysWorked.toFixed(2), "D", basicAmt.toLocaleString(undefined, {minimumFractionDigits: 2}));
     else if (hoursWorked > 0) printEarn("Basic Salary", hoursWorked.toFixed(2), "H", basicAmt.toLocaleString(undefined, {minimumFractionDigits: 2}));
 
-    // --- DETAILED HOLIDAYS ---
+    // --- HOLIDAYS ---
     const addHoliday = (label, daysKey, hoursKey, mult) => {
         const d = parseFloat(p[daysKey] || 0);
         const h = parseFloat(p[hoursKey] || 0);
         if (d > 0 || h > 0) {
             const amt = (d * daily * mult) + (h * hourly * mult);
-            const qtyStr = d > 0 ? `${d.toFixed(2)}D` : `${h.toFixed(2)}H`;
-            printEarn(label, qtyStr.replace(/[DH]/, ''), d > 0 ? 'D' : 'H', amt.toLocaleString(undefined, {minimumFractionDigits: 2}));
+            const qtyStr = d > 0 ? `${d.toFixed(2)}` : `${h.toFixed(2)}`;
+            const unit = d > 0 ? 'D' : 'H';
+            printEarn(label, qtyStr, unit, amt.toLocaleString(undefined, {minimumFractionDigits: 2}));
         }
     };
 
@@ -169,14 +173,15 @@ export const generatePayslipPDF = ({
     addHoliday("Regular Hol", 'regular_holiday_days', 'regular_holiday_hours', 2.0);
     addHoliday("Reg. on Rest", 'regular_holiday_rest_day_days', 'regular_holiday_rest_day_hours', 2.6);
 
-    // --- DETAILED NIGHT DIFF ---
+    // --- NIGHT DIFF ---
     const addND = (label, daysKey, hoursKey, mult) => {
         const d = parseFloat(p[daysKey] || 0);
         const h = parseFloat(p[hoursKey] || 0);
         if (d > 0 || h > 0) {
             const amt = (d * daily * mult) + (h * hourly * mult);
-             const qtyStr = d > 0 ? `${d.toFixed(2)}D` : `${h.toFixed(2)}H`;
-            printEarn(label, qtyStr.replace(/[DH]/, ''), d > 0 ? 'D' : 'H', amt.toLocaleString(undefined, {minimumFractionDigits: 2}));
+             const qtyStr = d > 0 ? `${d.toFixed(2)}` : `${h.toFixed(2)}`;
+             const unit = d > 0 ? 'D' : 'H';
+            printEarn(label, qtyStr, unit, amt.toLocaleString(undefined, {minimumFractionDigits: 2}));
         }
     }
     
@@ -184,7 +189,7 @@ export const generatePayslipPDF = ({
     addND("ND Rest/Spl", 'nd_rest_special_days', 'nd_rest_special_hours', 0.10); 
     addND("ND Regular", 'nd_regular_holiday_days', 'nd_regular_holiday_hours', 0.10);
 
-    // --- DETAILED OVERTIME ---
+    // --- OVERTIME ---
     const addOT = (label, hoursKey, mult) => {
         const h = parseFloat(p[hoursKey] || 0);
         if (h > 0) {
@@ -199,13 +204,16 @@ export const generatePayslipPDF = ({
     addOT("Spl/Rest OT", 'ot_special_rest_day_hours', 1.95);
     addOT("Reg Hol OT", 'ot_regular_holiday_hours', 2.60);
 
-    // Allowance
+    // --- ALLOWANCE & ADJUSTMENTS (NEW) ---
     const allow = parseFloat(p.allowance_amount || 0);
-    if (allow > 0) {
-        doc.text("Allowance", col1X, y1);
-        doc.text(allow.toLocaleString(undefined, {minimumFractionDigits: 2}), col1X + 65, y1, { align: 'right' });
-        y1 += bodyLineHeight;
-    }
+    const ecola = parseFloat(p.ecola || 0);
+    const adj1 = parseFloat(p.adjustment_1 || 0);
+    const adj2 = parseFloat(p.adjustment_2 || 0);
+
+    if (allow > 0) printEarn("Allowance", null, null, allow.toLocaleString(undefined, {minimumFractionDigits: 2}));
+    if (ecola > 0) printEarn("ECOLA", null, null, ecola.toLocaleString(undefined, {minimumFractionDigits: 2}));
+    if (adj1 > 0) printEarn("Adjustment 1", null, null, adj1.toLocaleString(undefined, {minimumFractionDigits: 2}));
+    if (adj2 > 0) printEarn("Adjustment 2", null, null, adj2.toLocaleString(undefined, {minimumFractionDigits: 2}));
 
     // Gross Total
     y1 += 2;

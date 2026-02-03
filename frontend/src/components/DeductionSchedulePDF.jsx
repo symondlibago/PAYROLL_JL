@@ -18,11 +18,11 @@ export const generateDeductionPDF = ({
   const pageWidth = doc.internal.pageSize.getWidth();
   
   doc.setFontSize(14);
-  doc.text("Job Link Provider", pageWidth / 2, 15, { align: "center" });
+  doc.text("AMAVI CORP.", pageWidth / 2, 15, { align: "center" });
   
   doc.setFontSize(10);
   doc.setFont('courier', 'normal');
-  doc.text("Location: Prince Padi blng", pageWidth / 2, 20, { align: "center" });
+  doc.text("5TH FLR., PRINCE PADI BLDG., MABULAY SUBD., LUNA ST., CAGAYAN DE ORO", pageWidth / 2, 20, { align: "center" });
   
   doc.setFontSize(12);
   doc.setFont('courier', 'bold');
@@ -162,17 +162,28 @@ export const generateDeductionPDF = ({
     
     // HOOK: Draw underline for Section Titles (e.g. SSS LOAN)
     didDrawCell: (data) => {
-        // Check if it's a body row, first column, spanning 6 columns (our section header)
-        if (data.section === 'body' && data.column.index === 0 && data.cell.colSpan === 6 && data.cell.raw !== '') {
-            const { doc, cell } = data;
-            // Calculate text width to draw underline exactly under text
-            const textWidth = doc.getTextWidth(cell.text[0]);
-            const x = cell.x + cell.padding('left');
-            const y = cell.y + cell.height - 2; // Position slightly up from bottom
+        const { doc, cell } = data;
+
+        // GUARD CLAUSE: Ensure cell exists to prevent crashes
+        if (!cell) return;
+
+        // Logic: 
+        // 1. Is 'body' section
+        // 2. Is first column (index 0)
+        // 3. Spans 6 columns (Section Header or Spacer)
+        if (data.section === 'body' && data.column.index === 0 && cell.colSpan === 6) {
             
-            doc.setLineWidth(0.1);
-            doc.setDrawColor(0, 0, 0);
-            doc.line(x, y, x + textWidth, y);
+            // FILTER: Ensure there is actual text content (Ignores Spacer Rows with empty text)
+            // cell.text is an array of strings. We check if the first line exists and is truthy.
+            if (cell.text && cell.text.length > 0 && cell.text[0]) {
+                const textWidth = doc.getTextWidth(cell.text[0]);
+                const x = cell.x + cell.padding('left');
+                const y = cell.y + cell.height - 2; 
+                
+                doc.setLineWidth(0.1);
+                doc.setDrawColor(0, 0, 0);
+                doc.line(x, y, x + textWidth, y);
+            }
         }
     }
   });

@@ -38,10 +38,11 @@ export const ExportPayrollModal = ({ isOpen, onClose, onGenerate, count }) => {
             <SearchableSelect 
               label="Report Type"
               options={[
-                { label: 'Payroll Sheet (Landscape)', value: 'payroll_sheet' },
-                { label: 'Deduction Schedule (Portrait)', value: 'deduction_schedule' },
-                { label: 'Contributions (Portrait)', value: 'contributions' },
-                { label: 'Employee Payslips (3/Page)', value: 'payslip' } // <-- ADDED
+                { label: 'Payroll Sheet (PDF Landscape)', value: 'payroll_sheet' },
+                { label: 'Payroll Sheet (Excel)', value: 'payroll_sheet_excel' }, // <--- NEW OPTION
+                { label: 'Deduction Schedule (PDF Portrait)', value: 'deduction_schedule' },
+                { label: 'Contributions (PDF Portrait)', value: 'contributions' },
+                { label: 'Employee Payslips (3/Page)', value: 'payslip' }
               ]}
               value={reportType}
               onChange={setReportType}
@@ -79,7 +80,7 @@ export const ExportPayrollModal = ({ isOpen, onClose, onGenerate, count }) => {
             disabled={!payPeriod || !payDate || !reportType}
             className="flex-1 bg-blue-600 hover:bg-blue-700"
           >
-            <FileDown className="w-4 h-4 mr-2" /> Generate PDF
+            <FileDown className="w-4 h-4 mr-2" /> Generate
           </Button>
         </div>
       </motion.div>

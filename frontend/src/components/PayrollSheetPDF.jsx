@@ -18,11 +18,11 @@ export const generatePayrollPDF = ({
   const pageWidth = doc.internal.pageSize.getWidth();
   
   doc.setFontSize(14);
-  doc.text("Job Link Provider", pageWidth / 2, 15, { align: "center" });
+  doc.text("AMAVI CORP.", pageWidth / 2, 15, { align: "center" });
   
   doc.setFontSize(10);
   doc.setFont('courier', 'normal');
-  doc.text("Location: Prince Padi blng", pageWidth / 2, 20, { align: "center" });
+  doc.text("5TH FLR., PRINCE PADI BLDG., MABULAY SUBD., LUNA ST., CAGAYAN DE ORO", pageWidth / 2, 20, { align: "center" });
 
   // 3. Info Block
   doc.setFontSize(9);
@@ -34,7 +34,12 @@ export const generatePayrollPDF = ({
   let totalBasic = 0;
   let totalOtAmt = 0;
   let totalNdAmt = 0;
+  
+  let totalLate = 0; 
   let totalEcola = 0;
+  let totalAdj1 = 0;
+  let totalAdj2 = 0;
+
   let totalGross = 0;
   let totalSss = 0;
   let totalPagibig = 0;
@@ -56,7 +61,12 @@ export const generatePayrollPDF = ({
     const basicAmt = parseFloat(p.basic_salary || 0);
     const otAmt = parseFloat(p.overtime_pay || 0);
     const ndAmt = parseFloat(p.night_diff_pay || 0);
-    const ecola = parseFloat(p.allowance_amount || 0);
+    const late = parseFloat(p.late_deduction || 0); 
+    
+    const ecola = parseFloat(p.ecola || 0);       
+    const adj1 = parseFloat(p.adjustment_1 || 0); 
+    const adj2 = parseFloat(p.adjustment_2 || 0); 
+    
     const gross = parseFloat(p.gross_pay || 0);
     const sss = parseFloat(p.sss_deduction || 0);
     const pagibig = parseFloat(p.pagibig_deduction || 0);
@@ -67,7 +77,10 @@ export const generatePayrollPDF = ({
     totalBasic += basicAmt;
     totalOtAmt += otAmt;
     totalNdAmt += ndAmt;
+    totalLate += late; 
     totalEcola += ecola;
+    totalAdj1 += adj1;
+    totalAdj2 += adj2;
     totalGross += gross;
     totalSss += sss;
     totalPagibig += pagibig;
@@ -90,25 +103,26 @@ export const generatePayrollPDF = ({
         parseFloat(p.nd_regular_holiday_hours || 0)
     );
 
-    // --- LOGIC FIX: Determine Attendance Display ---
+    // Attendance Logic
     const daysWorked = parseFloat(p.total_days_worked || 0);
     const hoursWorked = parseFloat(p.total_hours_worked || 0);
-    // If days > 0, show days. If days is 0, show hours.
     const attendanceDisplay = daysWorked > 0 ? daysWorked : hoursWorked;
 
-    // --- LOGIC FIX: Determine Rate Display ---
+    // Rate Display Logic
     const dailyRate = parseFloat(p.daily_rate || 0);
     const hourlyRate = parseFloat(p.hourly_rate || 0);
-    // If we are showing hours in attendance, show hourly rate. Otherwise daily.
     const rateDisplay = daysWorked > 0 ? dailyRate : (hourlyRate > 0 ? hourlyRate : dailyRate);
 
     return [
       p.employee_name,
       // Basic Salary
       rateDisplay.toLocaleString(undefined, {minimumFractionDigits: 2}), 
-      attendanceDisplay.toFixed(2), // <--- Uses the logic above
+      attendanceDisplay.toFixed(2), 
       parseFloat(p.holiday_pay || 0).toLocaleString(undefined, {minimumFractionDigits: 2}), 
-      '', // Undertime (BLANK)
+      
+      // Undertime / Late Deduction (Fixed: No parentheses)
+      late > 0 ? late.toLocaleString(undefined, {minimumFractionDigits: 2}) : '', 
+      
       basicAmt.toLocaleString(undefined, {minimumFractionDigits: 2}), 
       
       // Overtime
@@ -119,9 +133,10 @@ export const generatePayrollPDF = ({
       totalNdHours.toFixed(2), 
       ndAmt.toLocaleString(undefined, {minimumFractionDigits: 2}), 
       
-      // Others
-      '', 
+      // ECOLA | ADJ 1 | ADJ 2
       ecola.toLocaleString(undefined, {minimumFractionDigits: 2}), 
+      adj1.toLocaleString(undefined, {minimumFractionDigits: 2}), 
+      adj2.toLocaleString(undefined, {minimumFractionDigits: 2}), 
       
       // Gross
       gross.toLocaleString(undefined, {minimumFractionDigits: 2}),
@@ -149,8 +164,9 @@ export const generatePayrollPDF = ({
     '', // ND Hours
     { content: totalNdAmt.toLocaleString(undefined, {minimumFractionDigits: 2}), styles: { fontStyle: 'bold' } },
     
-    '', // Others
     { content: totalEcola.toLocaleString(undefined, {minimumFractionDigits: 2}), styles: { fontStyle: 'bold' } },
+    { content: totalAdj1.toLocaleString(undefined, {minimumFractionDigits: 2}), styles: { fontStyle: 'bold' } },
+    { content: totalAdj2.toLocaleString(undefined, {minimumFractionDigits: 2}), styles: { fontStyle: 'bold' } },
     
     { content: totalGross.toLocaleString(undefined, {minimumFractionDigits: 2}), styles: { fontStyle: 'bold' } },
     
@@ -166,13 +182,12 @@ export const generatePayrollPDF = ({
   // 5. Generate Table
   autoTable(doc, {
     startY: 45,
-    theme: 'plain',
+    theme: 'plain', 
     styles: {
         font: 'courier', 
         fontSize: 7,
         textColor: [0, 0, 0], 
-        lineWidth: 0.1,
-        lineColor: [0, 0, 0] 
+        lineWidth: 0, 
     },
     headStyles: { 
         fillColor: [255, 255, 255], 
@@ -180,22 +195,25 @@ export const generatePayrollPDF = ({
         halign: 'center', 
         valign: 'middle',
         fontStyle: 'bold',
-        lineWidth: 0.1,
+        lineWidth: 0.1, 
         lineColor: [0, 0, 0]
     },
     columnStyles: {
         0: { cellWidth: 35, fontStyle: 'bold' }, // Employee Name
+        // Removed explicit red color styling for column 4
     },
     
-    // NESTED HEADERS
     head: [
       [
         { content: 'Employee Name', rowSpan: 2, styles: { cellWidth: 35, valign: 'middle' } }, 
         { content: 'Basic Salary', colSpan: 5, styles: { halign: 'center' } },
         { content: 'Overtime', colSpan: 2, styles: { halign: 'center' } },
         { content: 'N. Different', colSpan: 2, styles: { halign: 'center' } },
-        { content: 'Others', rowSpan: 2, styles: { valign: 'middle' } },
+        
         { content: 'ECOLA', rowSpan: 2, styles: { valign: 'middle' } },
+        { content: 'Adj 1', rowSpan: 2, styles: { valign: 'middle' } },
+        { content: 'Adj 2', rowSpan: 2, styles: { valign: 'middle' } },
+        
         { content: 'Gross Pay', rowSpan: 2, styles: { valign: 'middle' } },
         { content: 'SSS', rowSpan: 2, styles: { valign: 'middle' } },
         { content: 'PAG-IBIG', rowSpan: 2, styles: { valign: 'middle' } },
@@ -205,11 +223,8 @@ export const generatePayrollPDF = ({
         { content: 'NET DUE', rowSpan: 2, styles: { valign: 'middle' } },
       ],
       [
-        // Basic Salary Sub-headers
-        'Rate', 'Days', 'L. Holiday', 'Undertime', 'Amount',
-        // Overtime Sub-headers
+        'Rate', 'Days', 'L. Hol', 'U.Time', 'Amount',
         'Hours', 'Amount',
-        // ND Sub-headers
         'Hours', 'Amount'
       ]
     ],
@@ -227,22 +242,18 @@ export const generatePayrollPDF = ({
   const sigLineY = finalY + 15;
   const nameY = finalY + 20;
 
-  // 1. Prepared By
   doc.text("PREPARED BY:", 30, sigY);
   doc.line(30, sigLineY, 90, sigLineY); 
   doc.text("LADY ROSE CANILLO", 60, nameY, { align: "center" });
 
-  // 2. Checked By
   doc.text("CHECKED BY:", 140, sigY);
   doc.line(140, sigLineY, 200, sigLineY); 
   doc.text("SHEENSHE AWITIN", 170, nameY, { align: "center" });
 
-  // 3. Approved By
   doc.text("APPROVED BY:", 250, sigY);
   doc.line(250, sigLineY, 310, sigLineY); 
   doc.text("AMELITA P. PADILLA", 280, nameY, { align: "center" });
 
-  // 7. Page Numbers
   const pageCount = doc.internal.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
